@@ -10,6 +10,7 @@ from sklearn.preprocessing import StandardScaler
 
 from config import settings
 from core.coletor import carregar_todos_os_logs
+from ml.anomalias import detectar_anomalias
 from ml.classificar import carregar_modelo, classificar_ip, pontuar
 from ml.features import FEATURES, extrair_features
 from ml.integridade import ModeloAdulteradoError, calcular_sha256, verificar_integridade
@@ -104,3 +105,15 @@ def test_c4_sem_hash_registrado_nao_carrega(artefatos, tmp_path):
     copia = shutil.copy(caminhos["caminho_modelo"], tmp_path / "modelo.pkl")
     with pytest.raises(ModeloAdulteradoError):
         carregar_modelo(copia, tmp_path / "inexistente.sha256")
+
+
+# ── Bônus: Isolation Forest ────────────────────────────────────
+
+def test_bonus_anomalias_destacam_o_atacante(eventos):
+    anomalos = detectar_anomalias(eventos, settings.BLACKLIST)
+    assert anomalos[0] == "185.220.101.1"
+    assert "192.168.1.10" not in anomalos
+
+
+def test_bonus_anomalias_sem_dados():
+    assert detectar_anomalias([], settings.BLACKLIST) == []

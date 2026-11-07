@@ -46,11 +46,8 @@ def cmd_ingerir(_):
 
 
 def cmd_treinar(_):
-    from ml.treinar import treinar_e_salvar
-    metricas = treinar_e_salvar()
-    print("=== Validação cruzada ===")
-    for nome in ("precisao", "recall", "f1"):
-        print(f"  {nome:<9} {metricas[nome]:.2f}")
+    from ml.treinar import exibir_relatorio, treinar_e_salvar
+    exibir_relatorio(treinar_e_salvar())
 
 
 def cmd_operador(_):
