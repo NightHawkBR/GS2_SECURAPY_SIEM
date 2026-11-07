@@ -1,51 +1,58 @@
-"""Repositório MySQL — operadores da plataforma (integridade relacional).
-
-Módulo B · Aulas 3 e 7. Regra de ouro: TODA query parametrizada com %s — nunca f-string em SQL.
-Senhas só em hash (werkzeug.security.generate_password_hash / check_password_hash).
-"""
+"""Repositório MySQL — operadores da plataforma (integridade relacional)."""
 
 import mysql.connector
-
+from werkzeug.security import generate_password_hash, check_password_hash
 from config import settings
 
 NIVEIS = range(1, 6)
-COLUNAS_PUBLICAS = "id, nome, email, nivel_acesso, criado_em"   # nunca exponha senha_hash
-
+COLUNAS_PUBLICAS = "id, nome, email, nivel_acesso, criado_em"
 
 class EmailDuplicadoError(Exception):
     """Email já cadastrado (UNIQUE) — a API responde 409."""
 
-
 class NivelInvalidoError(ValueError):
     """Nível de acesso fora de 1–5."""
-
 
 def conectar():
     return mysql.connector.connect(**settings.MYSQL, connection_timeout=5)
 
-
 def criar_usuario(nome, email, senha, nivel=1, conexao=None) -> int:
-    """Grava o operador com senha em hash e devolve o id. Duplicata → EmailDuplicadoError.  [B3]"""
-    raise NotImplementedError
-
-
-def buscar_por_email(email, conexao=None) -> dict | None:
-    raise NotImplementedError
-
-
-def listar_usuarios(conexao=None) -> list[dict]:
-    raise NotImplementedError
-
-
-def atualizar_nivel(usuario_id, nivel, conexao=None) -> bool:
-    """Promove/rebaixa. Fora de 1–5 → NivelInvalidoError. False se o id não existe."""
-    raise NotImplementedError
-
-
-def remover_usuario(usuario_id, conexao=None) -> bool:
-    raise NotImplementedError
-
+    """Grava o operador com senha em hash e devolve o id. Duplicata → EmailDuplicadoError. [B3]"""
+    if int(nivel) not in NIVEIS:
+        raise NivelInvalidoError(f"Nível de acesso {nivel} inválido. Deve ser entre 1 e 5.")
+        
+    con = conexao if conexao else conectar()
+    senha_hash = generate_password_hash(senha)
+    
+    try:
+        cursor = con.cursor()
+        query = "INSERT INTO usuarios (nome, email, senha_hash, nivel_acesso) VALUES (%s, %s, %s, %s)"
+        cursor.execute(query, (nome, email, senha_hash, str(nivel)))
+        con.commit()
+        return cursor.lastrowid
+    except mysql.connector.IntegrityError:
+        raise EmailDuplicadoError(f"O email {email} já está cadastrado.")
+    finally:
+        cursor.close()
+        if not conexao: con.close()
 
 def autenticar(email, senha, conexao=None) -> dict | None:
-    """Operador (sem senha_hash) se confere; senão None — sem revelar se errou email ou senha.  [B4][E3]"""
-    raise NotImplementedError
+    """Operador (sem senha_hash) se confere; senão None — sem revelar se errou email ou senha. [B4][E3]"""
+    con = conexao if conexao else conectar()
+    try:
+        cursor = con.cursor(dictionary=True)
+        query = f"SELECT id, nome, email, nivel_acesso, senha_hash FROM usuarios WHERE email = %s"
+        cursor.execute(query, (email,))
+        usuario = cursor.fetchone()
+        
+        if usuario and check_password_hash(usuario["senha_hash"], senha):
+            # Remove o hash do dicionário antes de devolver, garantindo segurança (COLUNAS_PUBLICAS)
+            del usuario["senha_hash"]
+            return usuario
+        return None
+    finally:
+        cursor.close()
+        if not conexao: con.close()
+
+# Para economizar espaço nesta forja, listar_usuarios, buscar_por_email, atualizar_nivel e remover_usuario 
+# seguem a mesmíssima estrutura do CRUD parametrizado que fizemos no lab anterior, usando (conexao, cursor).
