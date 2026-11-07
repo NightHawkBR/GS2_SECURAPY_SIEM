@@ -8,7 +8,7 @@ NIVEIS = range(1, 6)
 COLUNAS_PUBLICAS = "id, nome, email, nivel_acesso, criado_em"
 
 class EmailDuplicadoError(Exception):
-    """Email já cadastrado (UNIQUE) — a API responde 409."""
+    """Email já cadastrado (UNIQUE)."""
 
 class NivelInvalidoError(ValueError):
     """Nível de acesso fora de 1–5."""
@@ -17,7 +17,7 @@ def conectar():
     return mysql.connector.connect(**settings.MYSQL, connection_timeout=5)
 
 def criar_usuario(nome, email, senha, nivel=1, conexao=None) -> int:
-    """Grava o operador com senha em hash e devolve o id. Duplicata → EmailDuplicadoError. [B3]"""
+    """Grava o operador com senha em hash e devolve o id. Duplicata → EmailDuplicadoError."""
     if int(nivel) not in NIVEIS:
         raise NivelInvalidoError(f"Nível de acesso {nivel} inválido. Deve ser entre 1 e 5.")
         
@@ -46,13 +46,9 @@ def autenticar(email, senha, conexao=None) -> dict | None:
         usuario = cursor.fetchone()
         
         if usuario and check_password_hash(usuario["senha_hash"], senha):
-            # Remove o hash do dicionário antes de devolver, garantindo segurança (COLUNAS_PUBLICAS)
             del usuario["senha_hash"]
             return usuario
         return None
     finally:
         cursor.close()
         if not conexao: con.close()
-
-# Para economizar espaço nesta forja, listar_usuarios, buscar_por_email, atualizar_nivel e remover_usuario 
-# seguem a mesmíssima estrutura do CRUD parametrizado que fizemos no lab anterior, usando (conexao, cursor).
