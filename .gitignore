@@ -37,3 +37,6 @@ saida/*.txt
 
 # ml/modelo.pkl, ml/modelo.sha256 e ml/metricas.json SAO entregaveis — nao ignorar
 *.log.bak
+
+# LIXO
+config/cache_enriq.json
