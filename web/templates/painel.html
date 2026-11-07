@@ -1,0 +1,60 @@
+{# contexto: por_fonte (dict) · por_severidade (dict) · top_ips (list[{ip,total}]) · alertas_recentes (list[Alerta]) #}
+{% extends "base.html" %}
+{% block conteudo %}
+<form class="busca" method="get" action="{{ url_for('web.painel_ip') }}">
+  <input name="ip" placeholder="Investigar IP — ex.: 185.220.101.1" required>
+  <button type="submit">Investigar</button>
+</form>
+
+<div class="grade">
+  <section class="cartao">
+    <h2>Eventos por fonte</h2>
+    <dl class="contagem">
+      {% for fonte, total in por_fonte.items() %}<dt>{{ fonte }}</dt><dd>{{ total }}</dd>{% endfor %}
+    </dl>
+  </section>
+
+  <section class="cartao">
+    <h2>Alertas por severidade</h2>
+    <dl class="contagem">
+      {% for severidade, total in por_severidade.items() %}
+        <dt><span class="sev sev-{{ severidade|lower }}">{{ severidade }}</span></dt><dd>{{ total }}</dd>
+      {% endfor %}
+    </dl>
+  </section>
+</div>
+
+<section class="cartao">
+  <h2>Top 10 IPs suspeitos</h2>
+  <table>
+    <thead><tr><th>#</th><th>IP</th><th class="num">Eventos</th></tr></thead>
+    <tbody>
+      {% for item in top_ips %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td><a href="{{ url_for('web.painel_ip', ip=item.ip) }}">{{ item.ip }}</a></td>
+          <td class="num">{{ item.total }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="cartao">
+  <h2>Alertas recentes</h2>
+  <table>
+    <thead><tr><th>Quando</th><th>Severidade</th><th>Regra</th><th>IP</th><th>Descrição</th></tr></thead>
+    <tbody>
+      {% for alerta in alertas_recentes %}
+        <tr>
+          <td class="mono">{{ alerta.timestamp }}</td>
+          <td><span class="sev sev-{{ alerta.severidade|lower }}">{{ alerta.severidade }}</span></td>
+          <td>{{ alerta.regra_nome }}</td>
+          <td class="mono">{{ alerta.ip }}</td>
+          <td>{{ alerta.descricao }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,63 @@
+{# contexto: ip · eventos · alertas · geo (perfil) · classificacao (Classificacao|None) · triagem (Triagem|None) #}
+{% extends "base.html" %}
+{% block titulo %}{{ ip }}{% endblock %}
+{% block conteudo %}
+<h1 class="mono">{{ ip }}</h1>
+
+<div class="grade">
+  <section class="cartao">
+    <h2>Risco (ML)</h2>
+    {% if classificacao %}
+      <p class="destaque rotulo-{{ classificacao.rotulo }}">{{ classificacao.rotulo|upper }}</p>
+      <meter min="0" max="1" low="0.4" high="0.7" optimum="0" value="{{ classificacao.score }}"></meter>
+      <p class="mono">score {{ '%.2f'|format(classificacao.score) }}</p>
+    {% else %}
+      <p class="vazio">Modelo indisponível.</p>
+    {% endif %}
+  </section>
+
+  <section class="cartao">
+    <h2>Geolocalização</h2>
+    <dl class="contagem">
+      {% for campo in ('pais', 'regiao', 'cidade', 'org', 'hostname') %}<dt>{{ campo }}</dt><dd>{{ geo[campo] }}</dd>{% endfor %}
+    </dl>
+  </section>
+</div>
+
+<section class="cartao">
+  <h2>Triagem do assistente</h2>
+  {% if triagem %}
+    <p><span class="sev sev-{{ triagem.rotulo|lower }}">{{ triagem.rotulo }}</span> {{ triagem.explicacao }}</p>
+    <p class="nota">Origem: {{ triagem.origem }} — sugestão, não veredito.</p>
+  {% else %}
+    <p class="vazio">Sem triagem.</p>
+  {% endif %}
+</section>
+
+<section class="cartao">
+  <h2>Alertas ({{ alertas|length }})</h2>
+  <table>
+    <tbody>
+      {% for alerta in alertas %}
+        <tr>
+          <td class="mono">{{ alerta.timestamp }}</td>
+          <td><span class="sev sev-{{ alerta.severidade|lower }}">{{ alerta.severidade }}</span></td>
+          <td>{{ alerta.regra_nome }}</td>
+          <td>{{ alerta.descricao }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="cartao">
+  <h2>Eventos ({{ eventos|length }})</h2>
+  <table>
+    <tbody>
+      {% for evento in eventos %}
+        <tr><td class="mono">{{ evento.timestamp }}</td><td>{{ evento.fonte }}</td><td>{{ evento.tipo }}</td><td class="mono">{{ evento.detalhes }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

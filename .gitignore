@@ -5,11 +5,12 @@ __pycache__/
 *.so
 .Python
 
-# ===== Virtual environments =====
+# ===== Ambientes e segredos =====
 .venv/
 venv/
 env/
 ENV/
+.env
 
 # ===== Pytest =====
 .pytest_cache/
@@ -22,17 +23,17 @@ htmlcov/
 *.swp
 *.swo
 
-# ===== OS =====
+# ===== Sistema =====
 .DS_Store
 Thumbs.db
 desktop.ini
 
 # ===== Relatorios gerados em runtime =====
-# (queremos manter a pasta saida/ mas nao os relatorios gerados pelo sistema)
+# (mantem a pasta saida/ e o relatorio de exemplo da entrega)
 saida/*.json
 saida/*.txt
 !saida/.gitkeep
 !saida/relatorio_exemplo.json
 
-# ===== Logs de execucao (nao confundir com logs/ que sao dados de teste) =====
+# ml/modelo.pkl, ml/modelo.sha256 e ml/metricas.json SAO entregaveis — nao ignorar
 *.log.bak

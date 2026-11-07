@@ -4,15 +4,16 @@ Fornece dados de teste padronizados: eventos, alertas, regras, caminhos.
 """
 
 import os
-import sys
 import json
 import pytest
 import tempfile
 import shutil
 
-# Adiciona o diretorio raiz do projeto ao path para imports funcionarem
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+def pytest_collection_modifyitems(items):
+    for item in items:
+        if "nucleo" in item.path.parts:
+            item.add_marker(pytest.mark.nucleo)
 
 # ============================================================
 # Caminhos
@@ -323,3 +324,62 @@ def criar_regras_json(pasta_temporaria):
             json.dump({"regras": regras}, f)
         return caminho
     return _criar
+
+
+# ============================================================
+# Fixtures da plataforma (2º semestre)
+# ============================================================
+
+@pytest.fixture
+def eventos_reais(pasta_logs):
+    from core.coletor import carregar_todos_os_logs
+    return carregar_todos_os_logs(pasta_logs)
+
+
+@pytest.fixture
+def mongo_fake(monkeypatch):
+    """MongoDB em memória (mongomock) no lugar de mongo_repo.obter_db()."""
+    mongomock = pytest.importorskip("mongomock")
+    from db import mongo_repo
+    banco = mongomock.MongoClient()["securapy_teste"]
+    monkeypatch.setattr(mongo_repo, "obter_db", lambda: banco)
+    return banco
+
+
+@pytest.fixture
+def ambiente_isolado(monkeypatch):
+    """Sem internet, sem LLM real e com token conhecido."""
+    import requests
+    from config import settings
+
+    def sem_rede(*args, **kwargs):
+        raise requests.exceptions.ConnectionError("rede desligada nos testes")
+
+    monkeypatch.setattr("core.enriquecimento.requests.get", sem_rede)
+    monkeypatch.setattr(settings, "API_TOKEN", "token-de-teste-com-32-caracteres!")
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", None)
+    monkeypatch.setattr(settings, "LLM_MODO", "mock")
+
+
+@pytest.fixture
+def app(ambiente_isolado, mongo_fake):
+    from api.app import criar_app
+    return criar_app(testando=True)
+
+
+@pytest.fixture
+def cliente(app):
+    return app.test_client()
+
+
+@pytest.fixture
+def cabecalho_auth(ambiente_isolado):
+    from api.auth import gerar_token
+    return {"Authorization": f"Bearer {gerar_token('analista@cybershield.com')}"}
+
+
+@pytest.fixture
+def base_populada(app):
+    """Roda a análise completa dos logs de teste para dentro do mongomock."""
+    from orquestrador import executar_analise
+    return executar_analise(transmitir=False)

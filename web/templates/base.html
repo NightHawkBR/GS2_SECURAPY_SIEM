@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Painel{% endblock %} · SecuraPy Platform</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='painel.css') }}">
+</head>
+<body>
+  <header class="topo">
+    <a class="marca" href="{{ url_for('web.inicio') }}">SecuraPy <span>Platform</span></a>
+    {% if session.get('operador') %}
+      <form method="post" action="{{ url_for('web.logout') }}">
+        <span class="operador">{{ session['operador']['nome'] }}</span>
+        <button class="discreto" type="submit">Sair</button>
+      </form>
+    {% endif %}
+  </header>
+  <main class="conteudo">
+    {% block conteudo %}{% endblock %}
+  </main>
+</body>
+</html>

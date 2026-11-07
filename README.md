@@ -1,215 +1,226 @@
-# SecuraPy SIEM — Trabalho Final
+# SecuraPy Platform — Vanguard
 
-## Como usar este projeto
+SIEM da **CyberShield Ltda.** evoluído do MVP de linha de comando (1º semestre) para uma plataforma em camadas: os eventos e alertas vão para o **MongoDB**, operadores para o **MySQL**, um modelo de **machine learning** prioriza o risco por IP, uma **API REST** e um **dashboard web** expõem os dados, um **assistente LLM** explica eventos em linguagem natural e tudo sobe com **Docker Compose**. Alertas críticos continuam chegando em tempo real nos consoles TCP do 1º semestre.
 
-Este projeto contém a **casca** (esqueleto) do sistema SecuraPy SIEM. Todos os
-arquivos `.py` dos módulos já existem com as funções definidas, mas o corpo de
-cada função contém apenas `pass` — ou seja, **nada funciona ainda**.
-
-Seu trabalho é **implementar o código** dentro de cada função, seguindo as
-docstrings e dicas que já estão escritas nos arquivos.
-
-### Verificando seu progresso com os testes
-
-O projeto inclui **testes automatizados** que validam se sua implementação está
-correta. Quando você começar, **todos os testes vão falhar**. Conforme você
-implementa as funções, os testes vão passando.
-
-#### Instalando as dependências
-
-```bash
-# Na pasta securaPy/
-pip install pytest requests
-```
-
-#### Rodando todos os testes
-
-```bash
-# Na pasta securaPy/
-python -m pytest testes/ -v
-```
-
-#### Rodando testes de um módulo específico
-
-```bash
-# Testar apenas o coletor
-python -m pytest testes/test_coletor.py -v
-
-# Testar apenas as regras
-python -m pytest testes/test_regras.py -v
-
-# Testar apenas o detector
-python -m pytest testes/test_detector.py -v
-
-# Testar apenas o enriquecimento
-python -m pytest testes/test_enriquecimento.py -v
-
-# Testar apenas o servidor de alertas
-python -m pytest testes/test_servidor.py -v
-
-# Testar apenas os relatórios
-python -m pytest testes/test_relatorios.py -v
-
-# Testar apenas a integração (ponta a ponta)
-python -m pytest testes/test_integracao.py -v
-```
-
-#### Rodando um teste específico
-
-```bash
-# Rodar apenas um teste por nome
-python -m pytest testes/test_coletor.py::TestParsearLinhaAuth::test_linha_fail_retorna_dict -v
-```
-
-#### Vendo quantos testes passam vs falham
-
-```bash
-python -m pytest testes/ --tb=no -q
-```
-
-Saída esperada no início (tudo falhando):
-```
-182 failed, 15 passed
-```
-(os 15 que passam de cara são testes de entrada inválida/vazia — como as funções
-ainda não fazem nada, retornar `None` coincide com o comportamento esperado para
-entradas inválidas)
-
-Saída esperada quando tudo estiver implementado:
-```
-197 passed, 0 failed
-```
-
-### Ordem recomendada de implementação
-
-Comece pelo módulo que os outros dependem e vá subindo:
-
-1. **`coletor.py`** — base de tudo (rode `test_coletor.py`)
-2. **`regras.py`** — precisa do coletor (rode `test_regras.py`)
-3. **`detector.py`** — precisa do coletor (rode `test_detector.py`)
-4. **`enriquecimento.py`** — independente (rode `test_enriquecimento.py`)
-5. **`relatorios.py`** — precisa de todos (rode `test_relatorios.py`)
-6. **`servidor_alertas.py` + `cliente_alertas.py`** — independente (rode `test_servidor.py`)
-7. **`main.py`** — integra tudo (rode `test_integracao.py`)
-
-### Estrutura do projeto
-
-```
-securaPy/
-├── main.py                  # Ponto de entrada — menu principal
-├── coletor.py               # Módulo 1 — Leitura e parsing de logs
-├── regras.py                # Módulo 2 — Motor de regras de detecção
-├── detector.py              # Módulo 3 — Detecção de anomalias
-├── servidor_alertas.py      # Módulo 4a — Servidor TCP de alertas
-├── cliente_alertas.py       # Módulo 4b — Cliente TCP de alertas
-├── enriquecimento.py        # Módulo 5 — Consulta API de geolocalização
-├── relatorios.py            # Módulo 6 — Dashboard CLI e relatórios
-├── logs/                    # Arquivos de log para teste
-│   ├── auth.log
-│   ├── firewall.log
-│   └── web_access.log
-├── config/
-│   └── regras.json          # Configuração das regras de detecção
-├── saida/                   # Relatórios gerados (pasta de saída)
-├── testes/                  # Testes automatizados
-│   ├── conftest.py          # Fixtures compartilhadas
-│   ├── test_coletor.py      # Testes do módulo 1
-│   ├── test_regras.py       # Testes do módulo 2
-│   ├── test_detector.py     # Testes do módulo 3
-│   ├── test_servidor.py     # Testes do módulo 4
-│   ├── test_enriquecimento.py  # Testes do módulo 5
-│   ├── test_relatorios.py   # Testes do módulo 6
-│   └── test_integracao.py   # Testes ponta a ponta
-└── README.md                # Este arquivo
-```
-
-### Mapa de testes por módulo
-
-| Módulo | Arquivo de teste | Testes | O que valida |
-|--------|-----------------|--------|-------------|
-| coletor.py | test_coletor.py | 47 | Parsing dos 3 formatos de log, normalização, erros de arquivo |
-| regras.py | test_regras.py | 37 | Carregamento JSON, classificação severidade, avaliação de cada regra |
-| detector.py | test_detector.py | 38 | Brute force, port scan, blacklist, resumo consolidado |
-| enriquecimento.py | test_enriquecimento.py | 26 | IP privado/público, cache, mock de API, tratamento de erros |
-| servidor_alertas.py | test_servidor.py | 7 | Formatação de alertas, conexão TCP, broadcast |
-| relatorios.py | test_relatorios.py | 30 | Filtros, top IPs, exportação JSON, menu |
-| integração | test_integracao.py | 12 | Fluxo completo ponta a ponta |
-| | | **197** | **Total** |
-
----
-
-## Para a entrega: preencha as seções abaixo
-
-> **IMPORTANTE:** Antes de entregar, substitua tudo abaixo deste ponto
-> com as informações do seu grupo.
-
----
-
-# SecuraPy SIEM — [Nome do Grupo]
+> Trabalho Final (GS) · Coding for Security · FIAP · 2º semestre
 
 ## Integrantes
 
-| Nome | RM | Responsabilidade |
-|------|-----|-----------------|
-| [Nome completo] | [RM] | [Módulos que implementou] |
-| [Nome completo] | [RM] | [Módulos que implementou] |
-| [Nome completo] | [RM] | [Módulos que implementou] |
-| [Nome completo] | [RM] | [Módulos que implementou] |
+| Nome | RM | Módulos |
+|------|----|---------|
+| [Nome completo] | [RM] | A + B — Núcleo e Persistência |
+| [Nome completo] | [RM] | C — Machine Learning |
+| [Nome completo] | [RM] | D + F — API REST e Docker |
+| [Nome completo] | [RM] | E + G — Dashboard/Segurança Web e LLM |
 
-## Descrição
+---
 
-[Descreva em 2-3 parágrafos o que o sistema faz, quais problemas ele resolve
-e como os módulos se integram.]
+## Arquitetura
 
-## Como executar
+```mermaid
+flowchart LR
+    LOGS[(logs/*.log)] --> CORE[core<br/>coletor · regras · detector]
+    CORE --> ORQ{{orquestrador}}
+    ORQ --> ML[ml<br/>score de risco]
+    ORQ --> MONGO[(MongoDB<br/>eventos · alertas · ameaças)]
+    ORQ --> TCP[alertas<br/>servidor TCP :9999]
+    TCP --> C1[console 1] & C2[console 2]
+    API[api<br/>Flask :5000] --> ORQ
+    API --> MONGO
+    API --> IA[ia<br/>assistente LLM]
+    WEB[web<br/>dashboard] --> MONGO
+    WEB --> MYSQL[(MySQL<br/>operadores)]
+    API --> MYSQL
+```
+
+Cada camada só conversa com a de baixo e troca dados nos formatos de [`core/contratos.py`](core/contratos.py) (`Evento`, `Alerta`, `Ameaca`, `Classificacao`, `Triagem`). O `core/` não conhece banco, ML nem web — é o mesmo núcleo do 1º semestre.
+
+```
+securaPy_platform/
+├── core/                   NÚCLEO (1º sem) ............................ Módulo A
+│   ├── coletor.py            leitura e parsing dos 3 logs
+│   ├── regras.py             motor de regras (config/regras.json)
+│   ├── detector.py           brute force, port scan, blacklist (dict + set)
+│   ├── enriquecimento.py     ipinfo.io + cache + backoff em 429
+│   ├── relatorios.py         filtros, top IPs, exportação JSON, menu CLI
+│   ├── pipeline.py           núcleo em uma chamada: eventos → alertas + ameaças
+│   └── contratos.py          formatos de dados compartilhados por todas as camadas
+├── alertas/                TEMPO REAL (1º sem) ........................ Módulo A
+│   ├── servidor_alertas.py   broadcast TCP (sobe junto com a API no Docker)
+│   └── cliente_alertas.py    console do analista
+├── db/                     PERSISTÊNCIA ............................... Módulo B
+│   ├── mongo_repo.py         eventos/alertas/ameaças, filtros, agregações
+│   ├── mysql_repo.py         operadores — queries parametrizadas, senha em hash
+│   ├── migracao.py           ingestão inicial dos logs no MongoDB
+│   └── schema.sql            tabela usuarios (aplicada pelo compose)
+├── ml/                     MACHINE LEARNING ........................... Módulo C
+│   ├── features.py           features por IP (treino e classificação usam a mesma)
+│   ├── treinar.py            Pipeline + validação cruzada + joblib
+│   ├── classificar.py        score de risco por IP (carrega só se o hash conferir)
+│   ├── integridade.py        SHA-256 do modelo (OWASP A08)
+│   └── anomalias.py          Isolation Forest (bônus)
+├── api/                    API REST ................................... Módulo D
+│   ├── app.py                rotas, validação, erros e montagem da aplicação
+│   └── auth.py               token Bearer (JWT = bônus)
+├── web/                    DASHBOARD .................................. Módulo E
+│   ├── painel.py             login de operador, painel e investigação de IP
+│   ├── seguranca.py          headers de segurança + log de acesso (A09)
+│   ├── templates/            Jinja2 (escape automático)
+│   └── static/painel.css     CSS externo (a CSP bloqueia inline)
+├── ia/assistente.py        LLM com fallback por regras ................ Módulo G
+├── scripts/verificar_containers.py   status via Docker SDK ............ Módulo F
+├── orquestrador.py         fluxo ponta a ponta (GS §4)
+├── main.py                 linha de comando
+├── config/                 settings.py (variáveis de ambiente) · regras.json · cache de geolocalização
+├── logs/                   auth.log · firewall.log · web_access.log (dados de teste)
+├── testes/                 nucleo/ (1º sem) + um arquivo de testes por módulo B–G
+├── Dockerfile · docker-compose.yml · .env.example
+└── requirements.txt · requirements-dev.txt · pytest.ini
+```
+
+---
+
+## Como executar (Docker)
 
 ```bash
-# 1. Instalar dependências
-pip install requests
-
-# 2. Rodar o sistema
-cd securaPy
-python main.py
-
-# 3. Rodar os testes
-python -m pytest testes/ -v
+cp .env.example .env              # troque os valores — o .env nunca vai para o Git
+docker compose up --build         # sobe api + mongodb + mysql na rede "securapy"
+python scripts/verificar_containers.py   # F2: lista os 3 contêineres como "running"
 ```
 
-## Resultado dos testes
+| Serviço | Endereço |
+|---------|----------|
+| API + dashboard | http://localhost:5000 (saúde: `/api/saude`) |
+| Alertas em tempo real | `localhost:9999` |
+| MongoDB / MySQL | só em `127.0.0.1` (27017 / 3306) — nunca expostos na rede |
+
+Fluxo da demonstração (GS §4):
+
+```bash
+docker compose exec api python main.py operador          # cria o operador do dashboard
+docker compose exec api python main.py treinar           # treina o modelo (ou treine antes do build)
+
+python -m alertas.cliente_alertas                        # console 1 (outro terminal, só stdlib)
+python -m alertas.cliente_alertas                        # console 2
+
+curl -X POST http://localhost:5000/api/analisar \
+     -H "Authorization: Bearer <API_TOKEN do .env>" \
+     -H "Content-Type: application/json" -d "{}"         # analisa os 3 logs → alertas chegam nos consoles
+
+curl http://localhost:5000/api/ip/185.220.101.1          # eventos + alertas + geo + score + triagem
+```
+
+No PowerShell, use `curl.exe` no lugar de `curl`. Depois: `http://localhost:5000/login` → painel → busca por IP.
+
+### Sem Docker (desenvolvimento)
+
+```bash
+python -m venv .venv && .venv\Scripts\activate           # Linux/Mac: source .venv/bin/activate
+pip install -r requirements-dev.txt
+python main.py analisar --sem-banco                      # roda já hoje: núcleo + relatório JSON
+python main.py api                                       # API + dashboard em http://localhost:5000
+python main.py menu                                      # menu interativo do 1º semestre
+```
+
+Com os bancos do compose no ar, o `.env` local faz `python main.py ingerir` gravar direto neles.
+
+---
+
+## Testes
+
+```bash
+python -m pytest                       # tudo
+python -m pytest -m nucleo             # só o 1º semestre
+python -m pytest -m persistencia       # um módulo: persistencia | ml | api | web | docker | llm
+python -m pytest --tb=no -q            # placar rápido
+```
+
+Cada cenário da GS virou teste (`test_b_*` … `test_g_*`) — o mesmo esquema do 1º semestre: **o teste falha até o módulo ser implementado**. Banco, rede, Docker e OpenAI são simulados (mongomock, MagicMock, LLM falso), então tudo roda offline e sem gastar créditos.
+
+Placar no ponto de partida:
 
 ```
-[Cole aqui a saída do pytest mostrando quantos testes passam]
+198 passed · 65 failed · 18 errors · 2 skipped
 ```
+
+Os 198 são os 197 testes do núcleo + `/api/saude`. As falhas e erros são `NotImplementedError` e respostas `501` dos módulos B–G — somem conforme a equipe implementa. Os 2 pulados (F1/F3) rodam com a plataforma no ar: `SECURAPY_E2E=1 python -m pytest -m docker`.
+
+---
+
+## Mapa de implementação
+
+Cada função pendente tem docstring curta com o contrato e o cenário da GS entre colchetes (ex.: `[B2]`). Rotas pendentes respondem `501` com o cenário; o `orquestrador` marca etapas pendentes sem derrubar a análise.
+
+| Ordem | Módulo | Arquivos | Cenários | Testes |
+|:-----:|--------|----------|----------|--------|
+| 1 | **B** Persistência | `db/mongo_repo.py`, `db/mysql_repo.py`, `db/migracao.py` | B1–B4 | `test_b_persistencia.py` |
+| 1 | **C** Machine Learning | `ml/features.py`, `ml/integridade.py`, `ml/treinar.py`, `ml/classificar.py` | C1–C4 | `test_c_ml.py` |
+| 2 | **D** API REST | `api/auth.py`, `api/app.py` (rotas + `registrar_erros`) | D1–D5 | `test_d_api.py` |
+| 2 | **E** Web | `web/seguranca.py`, `web/painel.py` | E1–E4 | `test_e_web.py` |
+| 2 | **G** LLM | `ia/assistente.py` | G1–G4 | `test_g_assistente.py` |
+| 3 | **F** Docker | `scripts/verificar_containers.py` (Dockerfile e compose prontos) | F1–F3 | `test_f_docker.py` |
+
+B e C não dependem um do outro e começam juntos. D e E usam o banco, então vêm depois de B (GS §8, dica 3).
+
+### Convenções da equipe
+
+- Importe módulos, não funções: `from db import mongo_repo` → `mongo_repo.buscar_alertas(...)`. Os testes substituem funções no módulo.
+- Configuração sempre por `settings.X` (`from config import settings`) — nunca valor fixo no código, nunca segredo no Git.
+- Queries MySQL só com `%s`; templates sem `|safe`; `debug=True` nunca.
+- Mudou um formato em `core/contratos.py`? Avise o grupo antes do commit.
+
+---
+
+## O que veio do 1º semestre
+
+| 1º semestre | Agora | O que mudou |
+|-------------|-------|-------------|
+| `coletor.py` | `core/coletor.py` | mesmo parsing; dispatch por dicionário de parsers |
+| `regras.py` | `core/regras.py` | mesma lógica; código duplicado removido |
+| `detector.py` | `core/detector.py` | mesma lógica (dict + set) |
+| `enriquecimento.py` | `core/enriquecimento.py` | **corrigido** (`eh_ip_privado` aceitava só objeto, `consultar_ip` retornava `None`); cache em dict, backoff em 429 (Aula 10) |
+| `relatorios.py` | `core/relatorios.py` | exporta ameaças (sets → listas) para o relatório JSON |
+| `servidor_alertas.py` / `cliente_alertas.py` | `alertas/` | porta por variável de ambiente; servidor sobe em thread junto da API |
+| `main.py` (menu) | `python main.py menu` | o menu continua disponível como subcomando |
+| `testes/` (197) | `testes/nucleo/` | **197/197 passando** (antes da reorganização: 176) |
+
+Observação sobre o cenário A2: o `auth.log` tem **11** FAILs de `185.220.101.1` (a GS cita 10); a severidade esperada, ALTA, confere.
+
+---
 
 ## Divisão de tarefas
 
-### [Nome — Pessoa A]
-- **Módulos:** [lista]
-- **O que fez:** [descreva em 2-3 frases]
-- **Dificuldades:** [o que foi mais difícil e como resolveu]
+### [Nome — Pessoa A] · Módulos A e B
+- **O que fez:**
+- **Dificuldades:**
 
-### [Nome — Pessoa B]
-- **Módulos:** [lista]
-- **O que fez:** [descreva em 2-3 frases]
-- **Dificuldades:** [o que foi mais difícil e como resolveu]
+### [Nome — Pessoa B] · Módulo C
+- **O que fez:**
+- **Dificuldades:**
 
-### [Nome — Pessoa C]
-- **Módulos:** [lista]
-- **O que fez:** [descreva em 2-3 frases]
-- **Dificuldades:** [o que foi mais difícil e como resolveu]
+### [Nome — Pessoa C] · Módulos D e F
+- **O que fez:**
+- **Dificuldades:**
 
-### [Nome — Pessoa D] (se houver)
-- **Módulos:** [lista]
-- **O que fez:** [descreva em 2-3 frases]
-- **Dificuldades:** [o que foi mais difícil e como resolveu]
+### [Nome — Pessoa D] · Módulos E e G
+- **O que fez:**
+- **Dificuldades:**
 
-## Funcionalidades bônus implementadas
+---
 
-- [ ] Correlação temporal (brute force por janela de tempo)
-- [ ] Hash de integridade dos logs (hashlib)
-- [ ] Geração automática de logs para teste
-- [ ] Criação de regras customizadas pelo menu
+## Entregáveis
 
-## Demonstração em vídeo
+- [ ] Código-fonte com Dockerfile e docker-compose
+- [ ] README preenchido (integrantes e divisão de tarefas)
+- [ ] Vídeo (12–18 min): compose → análise via API → dashboard → busca de IP → score → LLM → 2 consoles
+- [ ] `saida/relatorio_exemplo.json` — `python main.py analisar --saida saida/relatorio_exemplo.json`
+- [ ] `ml/modelo.pkl` + `ml/modelo.sha256` + `ml/metricas.json` — `python main.py treinar`
 
-[Link do vídeo enviado pelo Teams]
+## Bônus
+
+| Bônus | Onde |
+|-------|------|
+| Detecção de anomalias (+0,30) | `ml/anomalias.py` |
+| Correlação temporal (+0,20) | `core/detector.py` — brute force por janela de tempo |
+| Testes automatizados (+0,30) | `testes/` (já estruturado) |
+| JWT completo (+0,20) | `api/auth.py` |

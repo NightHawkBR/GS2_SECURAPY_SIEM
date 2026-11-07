@@ -1,0 +1,65 @@
+/* SecuraPy Platform — estilo do painel (arquivo externo: a CSP bloqueia CSS inline) */
+
+:root {
+  --fundo: #0e1116;
+  --cartao: #161b22;
+  --borda: #262c36;
+  --texto: #d6dbe1;
+  --suave: #8b949e;
+  --acento: #3fb6a8;
+  --critica: #f85149;
+  --alta: #f0883e;
+  --media: #d29922;
+  --baixa: #58a6ff;
+  --info: #8b949e;
+  --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fundo); color: var(--texto); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+a { color: var(--acento); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1 { font-size: 1.5rem; margin: 0 0 1rem; }
+h2 { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--suave); margin: 0 0 .75rem; }
+
+.topo { display: flex; justify-content: space-between; align-items: center; padding: .9rem 1.5rem; border-bottom: 1px solid var(--borda); }
+.topo form { display: flex; gap: .75rem; align-items: center; }
+.marca { font-weight: 700; color: var(--texto); letter-spacing: .02em; }
+.marca span { color: var(--acento); font-weight: 400; }
+.operador { color: var(--suave); }
+
+.conteudo { max-width: 1100px; margin: 0 auto; padding: 1.5rem; display: grid; gap: 1rem; }
+.grade { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.cartao { background: var(--cartao); border: 1px solid var(--borda); border-radius: 8px; padding: 1.25rem; overflow-x: auto; }
+.estreito { max-width: 420px; margin: 3rem auto; width: 100%; }
+
+.contagem { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; margin: 0; }
+.contagem dd { margin: 0; font-family: var(--mono); text-align: right; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--borda); vertical-align: top; }
+th { color: var(--suave); font-weight: 500; font-size: .85rem; }
+.num { text-align: right; font-family: var(--mono); }
+.mono { font-family: var(--mono); font-size: .9em; word-break: break-all; }
+
+input, button { font: inherit; border-radius: 6px; padding: .55rem .8rem; border: 1px solid var(--borda); }
+input { background: var(--fundo); color: var(--texto); width: 100%; }
+button { background: var(--acento); color: #04201d; border-color: var(--acento); font-weight: 600; cursor: pointer; }
+button.discreto { background: transparent; color: var(--suave); border-color: var(--borda); font-weight: 400; }
+.busca { display: flex; gap: .5rem; }
+.formulario { display: grid; gap: .9rem; }
+.formulario label { display: grid; gap: .3rem; color: var(--suave); }
+
+.sev { display: inline-block; padding: .05rem .5rem; border-radius: 999px; font-size: .75rem; font-weight: 600; border: 1px solid currentColor; }
+.sev-critica, .sev-critico { color: var(--critica); }
+.sev-alta, .sev-suspeito { color: var(--alta); }
+.sev-media { color: var(--media); }
+.sev-baixa { color: var(--baixa); }
+.sev-info, .sev-normal { color: var(--info); }
+
+.destaque { font-size: 1.6rem; font-weight: 700; margin: 0 0 .5rem; }
+.rotulo-ataque { color: var(--critica); }
+.rotulo-normal { color: var(--acento); }
+meter { width: 100%; height: .8rem; }
+.erro { color: var(--critica); }
+.vazio, .nota { color: var(--suave); }

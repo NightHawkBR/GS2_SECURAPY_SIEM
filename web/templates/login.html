@@ -1,0 +1,14 @@
+{# contexto: erro (opcional) #}
+{% extends "base.html" %}
+{% block titulo %}Login{% endblock %}
+{% block conteudo %}
+<section class="cartao estreito">
+  <h1>Acesso do operador</h1>
+  {% if erro %}<p class="erro">{{ erro }}</p>{% endif %}
+  <form class="formulario" method="post" action="{{ url_for('web.login') }}">
+    <label>Email <input type="email" name="email" required autocomplete="username"></label>
+    <label>Senha <input type="password" name="senha" required autocomplete="current-password"></label>
+    <button type="submit">Entrar</button>
+  </form>
+</section>
+{% endblock %}

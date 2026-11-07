@@ -1,5 +1,5 @@
-[
-  {
+{
+  "185.220.101.1": {
     "ip": "185.220.101.1",
     "privado": false,
     "cidade": "Frankfurt",
@@ -8,7 +8,7 @@
     "org": "AS208294 Fastethernet",
     "hostname": "tor-exit.r2"
   },
-  {
+  "8.8.8.8": {
     "ip": "8.8.8.8",
     "privado": false,
     "cidade": "Mountain View",
@@ -17,7 +17,7 @@
     "org": "AS15169 Google LLC",
     "hostname": "Desconhecido"
   },
-  {
+  "192.168.1.10": {
     "ip": "192.168.1.10",
     "privado": true,
     "cidade": "Rede Interna",
@@ -25,14 +25,5 @@
     "pais": "Rede Interna",
     "org": "Rede Interna",
     "hostname": "Rede Interna"
-  },
-  {
-    "ip": "1.2.3.4",
-    "privado": false,
-    "cidade": "Teste",
-    "regiao": "Teste",
-    "pais": "BR",
-    "org": "Teste",
-    "hostname": "Desconhecido"
   }
-]
+}

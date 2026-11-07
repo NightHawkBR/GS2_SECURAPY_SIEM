@@ -1,0 +1,71 @@
+# SecuraPy Platform — API + MongoDB + MySQL na mesma rede (Módulo F)
+# Uso: cp .env.example .env  →  docker compose up --build
+name: securapy
+
+services:
+  api:
+    build: .
+    environment:            # só o que a API precisa — a senha root do MySQL fica fora
+      MONGO_URI: mongodb://mongodb:27017/
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-securapy}
+      MYSQL_USER: ${MYSQL_USER:-securapy}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?defina no .env}
+      API_TOKEN: ${API_TOKEN:?defina no .env}
+      SECRET_KEY: ${SECRET_KEY:?defina no .env}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      LLM_MODO: ${LLM_MODO:-auto}
+      IPINFO_TOKEN: ${IPINFO_TOKEN:-}
+      ALERTAS_TCP_ATIVO: "1"
+    ports:
+      - "5000:5000"      # API + dashboard
+      - "9999:9999"      # alertas em tempo real (consoles)
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    networks: [securapy]
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "127.0.0.1:${MONGO_PORTA_HOST:-27017}:27017"   # só localhost: banco nunca exposto na rede
+    volumes:
+      - mongo_dados:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [securapy]
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?defina no .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-securapy}
+      MYSQL_USER: ${MYSQL_USER:-securapy}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?defina no .env}
+    ports:
+      - "127.0.0.1:${MYSQL_PORTA_HOST:-3306}:3306"
+    volumes:
+      - mysql_dados:/var/lib/mysql
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    networks: [securapy]
+    restart: unless-stopped
+
+volumes:
+  mongo_dados:
+  mysql_dados:
+
+networks:
+  securapy:
