@@ -8,9 +8,9 @@ SIEM da **CyberShield Ltda.** evoluído do MVP de linha de comando (1º semestre
 
 | Nome | RM | Módulos |
 |------|----|---------|
-| [Nome completo] | [RM] | A + B — Núcleo e Persistência |
+| Matheus Silva Souza | 572335 | A + C  + G — Núcleo,  Machine Learning e LLM |
 | Victor Cassamassimo da Silva | 572852 | B + E — Persistência e Dashboard/Segurança Web |
-| [Nome completo] | [RM] | C — Machine Learning |
+| [Nome completo] | [RM] |  |
 | [Nome completo] | [RM] | D + F — API REST e Docker |
 
 ---
@@ -204,9 +204,9 @@ Observação sobre o cenário A2: o `auth.log` tem **11** FAILs de `185.220.101.
 
 ## Divisão de tarefas
 
-### [Nome — Pessoa A] · Módulos A e B
-- **O que fez:**
-- **Dificuldades:**
+### Matheus Silva · Módulos A e B
+- **O que fez:** Integração do Núcleo da GS1, implementação da LLM com Machine Learning.
+- **Dificuldades:**Minha maior dificuldade foi a integração do núcleo da GS1 com o resto do projeto. Sem o uso de IA, seria ainda mais complicado, mesmo com o prazo de entrega alongado.
 
 ### Cassa · Módulos B e E
 - **O que fez:** Integração dos bancos de dados e "assinatura" das tabelas de persistência. Criação do Dashboard e aplicação de medidas de segurança para a plataforma WEB dos operadores.
