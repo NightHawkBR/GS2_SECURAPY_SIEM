@@ -19,6 +19,8 @@ PASTA_LOGS = Path(_env("SECURAPY_LOGS", RAIZ / "logs"))
 ARQUIVO_REGRAS = RAIZ / "config" / "regras.json"
 ARQUIVO_CACHE_GEO = RAIZ / "config" / "cache_enriq.json"
 PASTA_SAIDA = RAIZ / "saida"
+BRUTE_FORCE_JANELA_SEGUNDOS = int(_env("BRUTE_FORCE_JANELA_SEGUNDOS", "60"))   # correlação temporal (bônus)
+BRUTE_FORCE_LIMITE_JANELA = int(_env("BRUTE_FORCE_LIMITE_JANELA", "5"))
 BLACKLIST = frozenset({"185.220.101.1", "45.33.32.156", "91.240.118.172", "23.94.5.100"})
 
 # ── Persistência ───────────────────────────────────────────────

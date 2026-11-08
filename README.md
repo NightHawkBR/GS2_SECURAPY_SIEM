@@ -40,7 +40,7 @@ securaPy_platform/
 ├── core/                   NÚCLEO (1º sem) ............................ Módulo A
 │   ├── coletor.py            leitura e parsing dos 3 logs
 │   ├── regras.py             motor de regras (config/regras.json)
-│   ├── detector.py           brute force, port scan, blacklist (dict + set)
+│   ├── detector.py           brute force, port scan, blacklist (dict + set) + rajada em janela de tempo
 │   ├── enriquecimento.py     ipinfo.io + cache + backoff em 429
 │   ├── relatorios.py         filtros, top IPs, exportação JSON, menu CLI
 │   ├── pipeline.py           núcleo em uma chamada: eventos → alertas + ameaças
@@ -235,6 +235,6 @@ Observação sobre o cenário A2: o `auth.log` tem **11** FAILs de `185.220.101.
 | Bônus | Onde | Situação |
 |-------|------|:--------:|
 | Detecção de anomalias (+0,30) | `ml/anomalias.py` — `python -m ml.anomalias` | ✅ |
-| Correlação temporal (+0,20) | `core/detector.py` — brute force por janela de tempo | ⏳ |
+| Correlação temporal (+0,20) | `core/detector.py` — brute force em rajada (padrão: 5 falhas em 60 s, alerta `T001`) — `python -m pytest -m temporal` | ✅ |
 | Testes automatizados (+0,30) | `testes/` — `python -m pytest` | ✅ |
 | JWT completo (+0,20) | `api/auth.py` — `python -m pytest -m jwt` | ✅ |

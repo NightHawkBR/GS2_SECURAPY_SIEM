@@ -28,7 +28,7 @@ class Evento(TypedDict):
 
 class Alerta(TypedDict, total=False):
     timestamp: str
-    regra_id: str                   # R001..R005 ou "MANUAL" (POST /api/alertas)
+    regra_id: str                   # R001..R005, T001 (rajada) ou "MANUAL" (POST /api/alertas)
     regra_nome: str
     severidade: Severidade
     ip: str
@@ -38,7 +38,7 @@ class Alerta(TypedDict, total=False):
 
 class Ameaca(TypedDict, total=False):
     ip: str
-    deteccoes: list[str]            # brute_force | port_scan | blacklist
+    deteccoes: list[str]            # brute_force | port_scan | blacklist | brute_force_rajada
     pontuacao: int
     severidade: Severidade
     detalhes: dict

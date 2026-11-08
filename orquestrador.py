@@ -76,7 +76,11 @@ def _transmitir(alertas):
 def executar_analise(caminho=None, eventos=None, *, persistir=True, transmitir=True):
     """Roda a plataforma inteira. Retorna {"resumo", "eventos", "alertas", "ameacas"}."""
     eventos = carregar_eventos(caminho) if eventos is None else eventos
-    nucleo = analisar_eventos(eventos, carregar_regras(settings.ARQUIVO_REGRAS), settings.BLACKLIST)
+    nucleo = analisar_eventos(
+        eventos, carregar_regras(settings.ARQUIVO_REGRAS), settings.BLACKLIST,
+        janela_segundos=settings.BRUTE_FORCE_JANELA_SEGUNDOS,
+        limite_rajada=settings.BRUTE_FORCE_LIMITE_JANELA,
+    )
     status = {"nucleo": "ok"}
 
     classificacoes = _etapa(status, "ml", classificar.pontuar, eventos, padrao=[])
