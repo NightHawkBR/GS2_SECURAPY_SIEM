@@ -61,7 +61,7 @@ securaPy_platform/
 │   └── anomalias.py          Isolation Forest (bônus)
 ├── api/                    API REST ................................... Módulo D
 │   ├── app.py                rotas, validação, erros e montagem da aplicação
-│   └── auth.py               token Bearer (JWT = bônus)
+│   └── auth.py               JWT dos operadores + token de serviço
 ├── web/                    DASHBOARD .................................. Módulo E
 │   ├── painel.py             login de operador, painel e investigação de IP
 │   ├── seguranca.py          headers de segurança + log de acesso (A09)
@@ -103,14 +103,28 @@ docker compose exec api python main.py treinar           # treina o modelo (ou t
 python -m alertas.cliente_alertas                        # console 1 (outro terminal, só stdlib)
 python -m alertas.cliente_alertas                        # console 2
 
+curl -X POST http://localhost:5000/api/token -H "Content-Type: application/json" \
+     -d '{"email": "<email do operador>", "senha": "<senha>"}'   # login → JWT válido por 30 min
+
 curl -X POST http://localhost:5000/api/analisar \
-     -H "Authorization: Bearer <API_TOKEN do .env>" \
+     -H "Authorization: Bearer <JWT recebido>" \
      -H "Content-Type: application/json" -d "{}"         # analisa os 3 logs → alertas chegam nos consoles
 
 curl http://localhost:5000/api/ip/185.220.101.1          # eventos + alertas + geo + score + triagem
 ```
 
 No PowerShell, use `curl.exe` no lugar de `curl`. Depois: `http://localhost:5000/login` → painel → busca por IP.
+
+### Autenticação da API
+
+As rotas de escrita (`POST /api/alertas` e `POST /api/analisar`) exigem `Authorization: Bearer <token>`. São aceitos dois tipos:
+
+| Token | Para quem | Como obter |
+|-------|-----------|------------|
+| **JWT** (HS256) | operadores | `POST /api/token` com email e senha do MySQL — expira em `JWT_EXPIRA_MINUTOS` (padrão 30) |
+| **Token de serviço** | automações e scripts | `API_TOKEN` do `.env` — deixe vazio para aceitar só JWT |
+
+O JWT é recusado se estiver expirado, adulterado, assinado com outra chave ou sem assinatura (`alg: none`). Alertas criados pela API guardam quem os criou em `criado_por`.
 
 ### Sem Docker (desenvolvimento)
 
@@ -218,9 +232,9 @@ Observação sobre o cenário A2: o `auth.log` tem **11** FAILs de `185.220.101.
 
 ## Bônus
 
-| Bônus | Onde |
-|-------|------|
-| Detecção de anomalias (+0,30) | `ml/anomalias.py` |
-| Correlação temporal (+0,20) | `core/detector.py` — brute force por janela de tempo |
-| Testes automatizados (+0,30) | `testes/` (já estruturado) |
-| JWT completo (+0,20) | `api/auth.py` |
+| Bônus | Onde | Situação |
+|-------|------|:--------:|
+| Detecção de anomalias (+0,30) | `ml/anomalias.py` — `python -m ml.anomalias` | ✅ |
+| Correlação temporal (+0,20) | `core/detector.py` — brute force por janela de tempo | ⏳ |
+| Testes automatizados (+0,30) | `testes/` — `python -m pytest` | ✅ |
+| JWT completo (+0,20) | `api/auth.py` — `python -m pytest -m jwt` | ✅ |

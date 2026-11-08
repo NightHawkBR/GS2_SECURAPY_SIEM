@@ -13,6 +13,8 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?defina no .env}
       API_TOKEN: ${API_TOKEN:?defina no .env}
       SECRET_KEY: ${SECRET_KEY:?defina no .env}
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_EXPIRA_MINUTOS: ${JWT_EXPIRA_MINUTOS:-30}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       LLM_MODO: ${LLM_MODO:-auto}
