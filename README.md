@@ -213,7 +213,7 @@ Observação sobre o cenário A2: o `auth.log` tem **11** FAILs de `185.220.101.
 - **Dificuldades:** Não tenho costume de fazer vibe coding, portanto, ainda tenho dificuldades de realizar atividades com prompts adequados. A longo prazo, a revisão dos condigos tornou-se mais facil, porém, ter o controle do que faço dessa forma é  mais complicados, diferente da primeira GS, que, ao menos, toda a lógica e parte fundamental do funcionamento do enriquecimento com consultas a API foram feitas por mim, e apenas aprimoradas com o uso de IA.
 
 ### Nicolas Schulthais · Módulo G e Bônus (JWT e Correlação Temporal)
-- **O que fez:** Implementação de LLM e verificação de Token via JWT e Correlação Temporal
+- **O que fez:** Implementação de LLM e autenticação da API via JWT e Correlação Temporal
 - **Dificuldades:**
 
 ### Pedro Bezerra · Módulos D e F
