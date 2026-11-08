@@ -9,7 +9,7 @@ import logging
 import uuid
 from datetime import datetime
 
-from flask import Blueprint, Flask, jsonify, request
+from flask import Blueprint, Flask, g, jsonify, request
 from werkzeug.exceptions import HTTPException
 
 import orquestrador
@@ -157,6 +157,7 @@ def criar_alerta():
         "severidade": severidade,
         "ip": ip,
         "descricao": descricao.strip(),
+        "criado_por": g.operador["sub"],
         "hash": hashlib.sha256(uuid.uuid4().bytes).hexdigest(),
     }
     return jsonify({"id": mongo_repo.inserir_alerta(alerta)}), 201
@@ -225,7 +226,11 @@ def emitir_token():
     operador = mysql_repo.autenticar(email, senha)
     if operador is None:
         return erro("Credenciais inválidas", 401)
-    return jsonify({"token": gerar_token(operador["email"])})
+    return jsonify({
+        "token": gerar_token(operador["email"], operador.get("nivel_acesso", 1)),
+        "tipo": "Bearer",
+        "expira_em": settings.JWT_EXPIRA_MINUTOS * 60,
+    })
 
 # ── Tratamento de erros ───────────────────────────────────────────
 

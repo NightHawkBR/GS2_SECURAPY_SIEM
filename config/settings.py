@@ -40,6 +40,8 @@ METRICAS_ML = MODELO_ML.with_name("metricas.json")
 # ── API e web ──────────────────────────────────────────────────
 API_TOKEN = _env("API_TOKEN")
 SECRET_KEY = _env("SECRET_KEY") or secrets.token_hex(32)
+JWT_SECRET = _env("JWT_SECRET") or SECRET_KEY
+JWT_EXPIRA_MINUTOS = int(_env("JWT_EXPIRA_MINUTOS", "30"))
 PAGINA_TAMANHO_MAX = 100
 
 # ── LLM ────────────────────────────────────────────────────────
