@@ -9,9 +9,9 @@ SIEM da **CyberShield Ltda.** evoluído do MVP de linha de comando (1º semestre
 | Nome | RM | Módulos |
 |------|----|---------|
 | [Nome completo] | [RM] | A + B — Núcleo e Persistência |
+| Victor Cassamassimo da Silva | 572852 | B + E — Persistência e Dashboard/Segurança Web |
 | [Nome completo] | [RM] | C — Machine Learning |
 | [Nome completo] | [RM] | D + F — API REST e Docker |
-| Victor Cassamassimo da Silva | 572852 | B + E — Persistência e Dashboard/Segurança Web |
 
 ---
 
@@ -208,6 +208,10 @@ Observação sobre o cenário A2: o `auth.log` tem **11** FAILs de `185.220.101.
 - **O que fez:**
 - **Dificuldades:**
 
+### Cassa · Módulos B e E
+- **O que fez:** Integração dos bancos de dados e "assinatura" das tabelas de persistência. Criação do Dashboard e aplicação de medidas de segurança para a plataforma WEB dos operadores.
+- **Dificuldades:** Não tenho costume de fazer vibe coding, portanto, ainda tenho dificuldades de realizar atividades com prompts adequados. A longo prazo, a revisão dos condigos tornou-se mais facil, porém, ter o controle do que faço dessa forma é  mais complicados, diferente da primeira GS, que, ao menos, toda a lógica e parte fundamental do funcionamento do enriquecimento com consultas a API foram feitas por mim, e apenas aprimoradas com o uso de IA.
+
 ### [Nome — Pessoa B] · Módulo C
 - **O que fez:**
 - **Dificuldades:**
@@ -215,10 +219,6 @@ Observação sobre o cenário A2: o `auth.log` tem **11** FAILs de `185.220.101.
 ### [Nome — Pessoa C] · Módulos D e F
 - **O que fez:**
 - **Dificuldades:**
-
-### Cassa · Módulos B e E
-- **O que fez:**Integração dos bancos de dados e "assinatura" das tabelas de persistência. Criação do Dashboard e aplicação de medidas de segurança para a plataforma WEB dos operadores.
-- **Dificuldades:**Não tenho costume de fazer vibe coding, portanto, ainda tenho dificuldades de realizar atividades com prompts adequados. A longo prazo, a revisão dos condigos tornou-se mais facil, porém, teer o controle do que faço dessa forma é  mais complicados, diferente da primeira GS, que, ao menos, toda a logica e parte fundamental do funcionamento do enriquecimento com consultas a API foram feitas por mim, e apenas aprimoradas com o uso de IA.
 
 ---
 
