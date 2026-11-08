@@ -3,7 +3,6 @@
 from functools import wraps
 from flask import Blueprint, redirect, render_template, request, session, url_for
 
-from config import settings
 from core import enriquecimento
 from db import mongo_repo, mysql_repo
 from ia import assistente
@@ -74,7 +73,7 @@ def painel_ip():
 
     eventos = mongo_repo.buscar_eventos(ip=ip_alvo, tamanho=50)
     alertas = mongo_repo.buscar_alertas(ip=ip_alvo, tamanho=50)
-    geo = enriquecimento.consultar_ip(ip_alvo, enriquecimento.carregar_cache(settings.ARQUIVO_CACHE_GEO))
+    geo = enriquecimento.consultar_ip(ip_alvo, mongo_repo.CacheGeolocalizacao())
 
     try:
         classificacao = classificar.classificar_ip(ip_alvo, eventos)

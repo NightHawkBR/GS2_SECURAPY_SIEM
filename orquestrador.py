@@ -1,4 +1,4 @@
-"""Fluxo ponta a ponta (GS §4): núcleo → ML → persistência → alertas em tempo real.
+"""Fluxo ponta a ponta (GS §4): núcleo → ML → enriquecimento → persistência → alertas em tempo real.
 
 Cada etapa é isolada: módulo pendente ou serviço fora do ar vira status no resumo,
 nunca derruba a análise. Usado pelo POST /api/analisar e pelo `python main.py analisar`.
@@ -10,6 +10,7 @@ from alertas.servidor_alertas import broadcast_alerta
 from config import settings
 from core.coletor import carregar_log, carregar_todos_os_logs, identificar_fonte
 from core.contratos import serializavel
+from core.enriquecimento import carregar_cache, enriquecer_alertas
 from core.pipeline import analisar_eventos
 from core.regras import carregar_regras
 from db import mongo_repo
@@ -85,6 +86,10 @@ def executar_analise(caminho=None, eventos=None, *, persistir=True, transmitir=T
 
     classificacoes = _etapa(status, "ml", classificar.pontuar, eventos, padrao=[])
     ameacas = serializavel(_aplicar_scores(nucleo["ameacas"], classificacoes))
+
+    # geolocalização vem do MongoDB e consultas novas são gravadas lá; sem banco, só a carga inicial em memória
+    cache_geo = mongo_repo.CacheGeolocalizacao() if persistir else carregar_cache(settings.ARQUIVO_CACHE_GEO)
+    _etapa(status, "enriquecimento", enriquecer_alertas, nucleo["alertas"], cache_geo)
 
     if persistir:
         _etapa(status, "persistencia", _persistir, eventos, nucleo["alertas"], ameacas)

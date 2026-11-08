@@ -22,7 +22,7 @@ flowchart LR
     LOGS[(logs/*.log)] --> CORE[core<br/>coletor · regras · detector]
     CORE --> ORQ{{orquestrador}}
     ORQ --> ML[ml<br/>score de risco]
-    ORQ --> MONGO[(MongoDB<br/>eventos · alertas · ameaças)]
+    ORQ --> MONGO[(MongoDB<br/>eventos · alertas · ameaças<br/>geolocalização)]
     ORQ --> TCP[alertas<br/>servidor TCP :9999]
     TCP --> C1[console 1] & C2[console 2]
     API[api<br/>Flask :5000] --> ORQ
@@ -41,7 +41,7 @@ securaPy_platform/
 │   ├── coletor.py            leitura e parsing dos 3 logs
 │   ├── regras.py             motor de regras (config/regras.json)
 │   ├── detector.py           brute force, port scan, blacklist (dict + set) + rajada em janela de tempo
-│   ├── enriquecimento.py     ipinfo.io + cache + backoff em 429
+│   ├── enriquecimento.py     ipinfo.io + backoff em 429 (o cache agora é o MongoDB)
 │   ├── relatorios.py         filtros, top IPs, exportação JSON, menu CLI
 │   ├── pipeline.py           núcleo em uma chamada: eventos → alertas + ameaças
 │   └── contratos.py          formatos de dados compartilhados por todas as camadas
@@ -49,9 +49,9 @@ securaPy_platform/
 │   ├── servidor_alertas.py   broadcast TCP (sobe junto com a API no Docker)
 │   └── cliente_alertas.py    console do analista
 ├── db/                     PERSISTÊNCIA ............................... Módulo B
-│   ├── mongo_repo.py         eventos/alertas/ameaças, filtros, agregações
+│   ├── mongo_repo.py         eventos/alertas/ameaças/geolocalização, filtros, agregações
 │   ├── mysql_repo.py         operadores — queries parametrizadas, senha em hash
-│   ├── migracao.py           ingestão inicial dos logs no MongoDB
+│   ├── migracao.py           ingestão inicial dos logs e da geolocalização no MongoDB
 │   └── schema.sql            tabela usuarios (aplicada pelo compose)
 ├── ml/                     MACHINE LEARNING ........................... Módulo C
 │   ├── features.py           features por IP (treino e classificação usam a mesma)
@@ -71,7 +71,7 @@ securaPy_platform/
 ├── scripts/verificar_containers.py   status via Docker SDK ............ Módulo F
 ├── orquestrador.py         fluxo ponta a ponta (GS §4)
 ├── main.py                 linha de comando
-├── config/                 settings.py (variáveis de ambiente) · regras.json · cache de geolocalização
+├── config/                 settings.py (variáveis de ambiente) · regras.json · geolocalização inicial (semente do MongoDB)
 ├── logs/                   auth.log · firewall.log · web_access.log (dados de teste)
 ├── testes/                 nucleo/ (1º sem) + um arquivo de testes por módulo B–G
 ├── Dockerfile · docker-compose.yml · .env.example
@@ -192,7 +192,7 @@ B e C não dependem um do outro e começam juntos. D e E usam o banco, então v�
 | `coletor.py` | `core/coletor.py` | mesmo parsing; dispatch por dicionário de parsers |
 | `regras.py` | `core/regras.py` | mesma lógica; código duplicado removido |
 | `detector.py` | `core/detector.py` | mesma lógica (dict + set) |
-| `enriquecimento.py` | `core/enriquecimento.py` | **corrigido** (`eh_ip_privado` aceitava só objeto, `consultar_ip` retornava `None`); cache em dict, backoff em 429 (Aula 10) |
+| `enriquecimento.py` | `core/enriquecimento.py` | **corrigido** (`eh_ip_privado` aceitava só objeto, `consultar_ip` retornava `None`); backoff em 429 (Aula 10). O cache em arquivo deu lugar à coleção `geolocalizacao` no MongoDB (índice único em `ip` + TTL de 30 dias), e o JSON antigo virou a carga inicial |
 | `relatorios.py` | `core/relatorios.py` | exporta ameaças (sets → listas) para o relatório JSON |
 | `servidor_alertas.py` / `cliente_alertas.py` | `alertas/` | porta por variável de ambiente; servidor sobe em thread junto da API |
 | `main.py` (menu) | `python main.py menu` | o menu continua disponível como subcomando |
