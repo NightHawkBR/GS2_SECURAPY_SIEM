@@ -11,7 +11,7 @@ SIEM da **CyberShield Ltda.** evoluído do MVP de linha de comando (1º semestre
 | [Nome completo] | [RM] | A + B — Núcleo e Persistência |
 | [Nome completo] | [RM] | C — Machine Learning |
 | [Nome completo] | [RM] | D + F — API REST e Docker |
-| [Nome completo] | [RM] | E + G — Dashboard/Segurança Web e LLM |
+| Victor Cassamassimo da Silva | 572852 | B + E — Persistência e Dashboard/Segurança Web |
 
 ---
 
