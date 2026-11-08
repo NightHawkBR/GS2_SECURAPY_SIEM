@@ -142,3 +142,35 @@ class TestMySQL:
 
         conexao, _ = _conexao_falsa(linha=dict(linha))
         assert mysql_repo.autenticar("ana@empresa.com", "errada", conexao=conexao) is None
+
+    def test_outro_erro_de_integridade_nao_vira_duplicata(self):
+        nulo = mysql.connector.IntegrityError("Column 'nome' cannot be null", errno=1048)
+        conexao, _ = _conexao_falsa(erro=nulo)
+        with pytest.raises(mysql.connector.IntegrityError):
+            mysql_repo.criar_usuario(None, "x@empresa.com", "S3gur4nca!", 1, conexao=conexao)
+
+    def test_busca_e_listagem_nunca_leem_a_senha(self):
+        conexao, cursor = _conexao_falsa(linha={"id": 1, "email": "ana@empresa.com"})
+        cursor.fetchall.return_value = [{"id": 1, "nome": "Ana Costa"}]
+        assert mysql_repo.buscar_por_email("ana@empresa.com", conexao=conexao)["id"] == 1
+        assert mysql_repo.listar_usuarios(conexao=conexao) == [{"id": 1, "nome": "Ana Costa"}]
+        assert all("senha_hash" not in sql for sql, _ in _sql_e_parametros(cursor))
+
+    def test_atualiza_nivel_e_remove(self):
+        conexao, cursor = _conexao_falsa()
+        cursor.rowcount = 1
+        assert mysql_repo.atualizar_nivel(3, 4, conexao=conexao) is True
+        assert mysql_repo.remover_usuario(3, conexao=conexao) is True
+        cursor.rowcount = 0
+        assert mysql_repo.remover_usuario(99, conexao=conexao) is False
+        assert all("%s" in sql for sql, _ in _sql_e_parametros(cursor))
+        with pytest.raises(mysql_repo.NivelInvalidoError):
+            mysql_repo.atualizar_nivel(3, 9, conexao=conexao)
+
+    def test_conexao_que_cai_mostra_o_erro_real(self, monkeypatch):
+        conexao = MagicMock()
+        conexao.cursor.side_effect = mysql.connector.errors.OperationalError("MySQL server has gone away")
+        monkeypatch.setattr(mysql_repo, "conectar", lambda: conexao)
+        with pytest.raises(mysql.connector.Error):
+            mysql_repo.autenticar("ana@empresa.com", "qualquer")
+        conexao.close.assert_called_once()
