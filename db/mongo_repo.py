@@ -35,7 +35,7 @@ def criar_indices(db=None) -> None:
     banco[EVENTOS].create_index([("ip", ASCENDING)])
     banco[EVENTOS].create_index([("timestamp", DESCENDING)])
     banco[EVENTOS].create_index([("hash", ASCENDING)], unique=True)
-    
+
     banco[ALERTAS].create_index([("ip", ASCENDING)])
     banco[ALERTAS].create_index([("severidade", DESCENDING)])
     banco[ALERTAS].create_index([("hash", ASCENDING)], unique=True)
@@ -102,7 +102,7 @@ def buscar_eventos(fonte=None, tipo=None, ip=None, desde=None, ate=None,
         filtro["timestamp"] = {}
         if desde: filtro["timestamp"]["$gte"] = desde
         if ate: filtro["timestamp"]["$lte"] = ate
-        
+
     cursor = banco[EVENTOS].find(filtro).sort("timestamp", DESCENDING)
     cursor = cursor.skip((pagina - 1) * tamanho).limit(tamanho)
     return [_formatar_saida(doc) for doc in cursor]
@@ -112,7 +112,7 @@ def buscar_alertas(severidade=None, ip=None, pagina=1, tamanho=20, db=None) -> l
     filtro = {}
     if severidade: filtro["severidade"] = severidade
     if ip: filtro["ip"] = ip
-    
+
     cursor = banco[ALERTAS].find(filtro).sort("timestamp", DESCENDING)
     cursor = cursor.skip((pagina - 1) * tamanho).limit(tamanho)
     return [_formatar_saida(doc) for doc in cursor]

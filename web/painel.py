@@ -29,28 +29,23 @@ def inicio():
 
 @web.route("/login", methods=["GET", "POST"])
 def login():
-    """POST → mysql_repo.autenticar. Falha → 401. Campos vazios → 400. [E3]"""
-    erro = None
-    if request.method == "POST":
-        email = request.form.get("email", "").strip()
-        senha = request.form.get("senha", "").strip()
-        
-        # Correção 1: Exigência do teste para campos vazios (Erro 400)
-        if not email or not senha:
-            erro = "Preencha todos os campos."
-            return render_template("login.html", erro=erro), 400
-            
-        usuario = mysql_repo.autenticar(email, senha)
-        if usuario:
-            # Correção 2: Exigência do teste de salvar o dicionário inteiro do operador
-            session[CHAVE_SESSAO] = usuario
-            return redirect(url_for("web.painel"))
-        else:
-            # Falha genérica anti-enumeração
-            erro = MENSAGEM_LOGIN_INVALIDO
-            return render_template("login.html", erro=erro), 401
-            
-    return render_template("login.html", erro=erro)
+    """POST → mysql_repo.autenticar. Falha → 401. Campos vazios → 400.  [E3]"""
+    if request.method == "GET":
+        return render_template("login.html")
+
+    email = request.form.get("email", "").strip()
+    senha = request.form.get("senha", "")
+    if not email or not senha:
+        return render_template("login.html", erro="Preencha todos os campos."), 400
+
+    operador = mysql_repo.autenticar(email, senha)
+    if not operador:                     # mesma resposta para email inexistente e senha errada
+        return render_template("login.html", erro=MENSAGEM_LOGIN_INVALIDO), 401
+
+    session.clear()                      # sessão nova a cada login (evita session fixation)
+    session[CHAVE_SESSAO] = operador
+    return redirect(url_for("web.painel"))
+
 
 @web.post("/logout")
 def logout():
@@ -76,7 +71,7 @@ def painel_ip():
     ip_alvo = request.args.get("ip")
     if not ip_alvo:
         return redirect(url_for("web.painel"))
-        
+
     eventos = mongo_repo.buscar_eventos(ip=ip_alvo, tamanho=50)
     alertas = mongo_repo.buscar_alertas(ip=ip_alvo, tamanho=50)
     geo = enriquecimento.consultar_ip(ip_alvo, enriquecimento.carregar_cache(settings.ARQUIVO_CACHE_GEO))
