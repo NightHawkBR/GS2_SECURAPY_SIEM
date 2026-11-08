@@ -18,7 +18,7 @@ from api.auth import gerar_token, token_obrigatorio
 from config import settings
 from core import enriquecimento
 from core.contratos import FONTES, normalizar_severidade
-from db import mongo_repo, mysql_repo
+from db import migracao, mongo_repo, mysql_repo
 from ia import assistente
 from ml import classificar
 from web import painel, seguranca
@@ -48,10 +48,8 @@ def ler_paginacao():
 
 
 def obter_geolocalizacao(ip):
-    cache = enriquecimento.carregar_cache(settings.ARQUIVO_CACHE_GEO)
-    perfil = enriquecimento.consultar_ip(ip, cache)
-    enriquecimento.salvar_cache(cache, settings.ARQUIVO_CACHE_GEO)
-    return perfil
+    """MongoDB primeiro; IP novo vai ao ipinfo.io e a resposta fica gravada na coleção."""
+    return enriquecimento.consultar_ip(ip, mongo_repo.CacheGeolocalizacao())
 
 
 def obter_score(ip, eventos):
@@ -279,6 +277,8 @@ def criar_app(testando=False):
     seguranca.registrar(app)
     registrar_erros(app)
 
+    if not testando:
+        migracao.preparar_banco()
     if settings.ALERTAS_TCP_ATIVO and not testando:
         iniciar_em_background(settings.ALERTAS_HOST, settings.ALERTAS_PORTA)
     return app

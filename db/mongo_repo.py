@@ -1,17 +1,22 @@
-"""Repositório MongoDB — eventos, alertas e ameaças (volume + schema flexível)."""
+"""Repositório MongoDB — eventos, alertas, ameaças e geolocalização (volume + schema flexível)."""
 
 import hashlib
+import logging
+from datetime import datetime, timezone
 from functools import lru_cache
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.database import Database
-from pymongo.errors import BulkWriteError
+from pymongo.errors import BulkWriteError, PyMongoError
 from bson.objectid import ObjectId
 from bson.errors import InvalidId
 
 from core.contratos import serializavel
 from config import settings
 
-EVENTOS, ALERTAS, AMEACAS = "eventos", "alertas", "ameacas"
+EVENTOS, ALERTAS, AMEACAS, GEOLOCALIZACAO = "eventos", "alertas", "ameacas", "geolocalizacao"
+VALIDADE_GEO_SEGUNDOS = 30 * 24 * 3600      # TTL: o próprio MongoDB expira a geolocalização antiga
+
+log = logging.getLogger("securapy.mongo")
 
 @lru_cache(maxsize=1)
 def obter_db() -> Database:
@@ -30,7 +35,7 @@ def _formatar_saida(doc: dict) -> dict | None:
 # ── Escrita ────────────────────────────────────────────────────
 
 def criar_indices(db=None) -> None:
-    """Índices em ip e timestamp + único em "hash"."""
+    """Índices em ip e timestamp + único em "hash". Geolocalização: único em ip + TTL."""
     banco = _db(db)
     banco[EVENTOS].create_index([("ip", ASCENDING)])
     banco[EVENTOS].create_index([("timestamp", DESCENDING)])
@@ -39,6 +44,9 @@ def criar_indices(db=None) -> None:
     banco[ALERTAS].create_index([("ip", ASCENDING)])
     banco[ALERTAS].create_index([("severidade", DESCENDING)])
     banco[ALERTAS].create_index([("hash", ASCENDING)], unique=True)
+
+    banco[GEOLOCALIZACAO].create_index([("ip", ASCENDING)], unique=True)
+    banco[GEOLOCALIZACAO].create_index([("consultado_em", ASCENDING)], expireAfterSeconds=VALIDADE_GEO_SEGUNDOS)
 
 def salvar_eventos(eventos, db=None) -> int:
     if not eventos: return 0
@@ -151,3 +159,63 @@ def contagem_por_fonte(db=None) -> dict[str, int]:
     banco = _db(db)
     pipeline = [{"$group": {"_id": "$fonte", "total": {"$sum": 1}}}]
     return {doc["_id"]: doc["total"] for doc in banco[EVENTOS].aggregate(pipeline) if doc["_id"]}
+
+# ── Geolocalização (substitui o cache em arquivo do 1º semestre) ──
+
+def _agora():
+    return datetime.now(timezone.utc)
+
+def buscar_geolocalizacao(ip, db=None) -> dict | None:
+    banco = _db(db)
+    return banco[GEOLOCALIZACAO].find_one({"ip": ip}, {"_id": 0, "consultado_em": 0})
+
+def salvar_geolocalizacao(perfil, db=None) -> None:
+    """Upsert por ip: consulta nova sobrescreve a antiga e renova o prazo do TTL."""
+    banco = _db(db)
+    banco[GEOLOCALIZACAO].update_one(
+        {"ip": perfil["ip"]}, {"$set": {**perfil, "consultado_em": _agora()}}, upsert=True
+    )
+
+def inserir_geolocalizacoes(perfis, db=None) -> int:
+    """Carga inicial: grava só os IPs que ainda não estão no banco (nunca sobrescreve)."""
+    banco = _db(db)
+    inseridos = 0
+    for perfil in perfis:
+        res = banco[GEOLOCALIZACAO].update_one(
+            {"ip": perfil["ip"]}, {"$setOnInsert": {**perfil, "consultado_em": _agora()}}, upsert=True
+        )
+        inseridos += res.upserted_id is not None
+    return inseridos
+
+class CacheGeolocalizacao:
+    """Coleção "geolocalizacao" com cara de dict: o core.enriquecimento.consultar_ip não muda.
+
+    Banco fora do ar → segue só em memória, sem travar a consulta nem repetir a espera.
+    """
+
+    def __init__(self, db=None):
+        self.banco = db
+        self.memoria = {}
+        self.disponivel = True
+
+    def __contains__(self, ip):
+        if ip not in self.memoria and (perfil := self._tentar(buscar_geolocalizacao, ip)):
+            self.memoria[ip] = perfil
+        return ip in self.memoria
+
+    def __getitem__(self, ip):
+        return self.memoria[ip]
+
+    def __setitem__(self, ip, perfil):
+        self.memoria[ip] = perfil
+        self._tentar(salvar_geolocalizacao, perfil)
+
+    def _tentar(self, operacao, valor):
+        if not self.disponivel:
+            return None
+        try:
+            return operacao(valor, db=self.banco)
+        except PyMongoError as erro:
+            self.disponivel = False
+            log.warning("geolocalização sem MongoDB: %s", type(erro).__name__)
+            return None

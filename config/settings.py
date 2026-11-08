@@ -17,7 +17,7 @@ def _env(nome, padrao=None):
 # ── Dados do núcleo ────────────────────────────────────────────
 PASTA_LOGS = Path(_env("SECURAPY_LOGS", RAIZ / "logs"))
 ARQUIVO_REGRAS = RAIZ / "config" / "regras.json"
-ARQUIVO_CACHE_GEO = RAIZ / "config" / "cache_enriq.json"
+ARQUIVO_CACHE_GEO = RAIZ / "config" / "cache_enriq.json"     # semente do MongoDB + cache do menu do 1º sem
 PASTA_SAIDA = RAIZ / "saida"
 BRUTE_FORCE_JANELA_SEGUNDOS = int(_env("BRUTE_FORCE_JANELA_SEGUNDOS", "60"))   # correlação temporal (bônus)
 BRUTE_FORCE_LIMITE_JANELA = int(_env("BRUTE_FORCE_LIMITE_JANELA", "5"))

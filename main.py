@@ -1,7 +1,7 @@
 """SecuraPy Platform — linha de comando.
 
   python main.py analisar [--sem-banco] [--sem-tempo-real] [--saida ARQ]
-  python main.py ingerir            carga inicial dos logs no MongoDB
+  python main.py ingerir            carga inicial dos logs e da geolocalização no MongoDB
   python main.py treinar            treina o modelo de risco
   python main.py operador           cadastra um operador no MySQL
   python main.py api                API + dashboard (desenvolvimento)
@@ -33,16 +33,17 @@ def cmd_analisar(args):
     print(f"\n[OK] {resumo['total_eventos']} eventos · {resumo['total_alertas']} alertas · "
           f"{resumo['total_ameacas']} ameaças")
     for etapa, status in resumo["etapas"].items():
-        print(f"     {etapa:<13} {status}")
+        print(f"     {etapa:<15} {status}")
 
-    cache = carregar_cache(settings.ARQUIVO_CACHE_GEO)
-    dados = relatorios.montar_dados_relatorio(resultado["eventos"], resultado["alertas"], cache, resultado["ameacas"])
+    geo = {a["ip"]: a["geolocalizacao"] for a in resultado["alertas"] if a.get("geolocalizacao")}
+    dados = relatorios.montar_dados_relatorio(resultado["eventos"], resultado["alertas"], geo, resultado["ameacas"])
     relatorios.exportar_relatorio_json(dados, args.saida or relatorios.gerar_nome_relatorio(settings.PASTA_SAIDA))
 
 
 def cmd_ingerir(_):
-    from db.migracao import migrar
+    from db.migracao import migrar, semear_geolocalizacao
     print(f"[OK] {migrar()} eventos persistidos no MongoDB.")
+    print(f"[OK] {semear_geolocalizacao()} geolocalizações iniciais gravadas.")
 
 
 def cmd_treinar(_):
