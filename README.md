@@ -11,7 +11,7 @@ SIEM da **CyberShield Ltda.** evoluído do MVP de linha de comando (1º semestre
 | Matheus Silva Souza | 572335 | A + C  + G — Núcleo,  Machine Learning e LLM |
 | Victor Cassamassimo da Silva | 572852 | B + E — Persistência e Dashboard/Segurança Web |
 | [Nome completo] | [RM] |  |
-| [Nome completo] | [RM] | D + F — API REST e Docker |
+| Pedro Bezerra Cardoso | 567119 | D + F — API REST e Docker |
 
 ---
 
@@ -216,9 +216,9 @@ Observação sobre o cenário A2: o `auth.log` tem **11** FAILs de `185.220.101.
 - **O que fez:**
 - **Dificuldades:**
 
-### [Nome — Pessoa C] · Módulos D e F
-- **O que fez:**
-- **Dificuldades:**
+### Pedro Bezerra · Módulos D e F
+- **O que fez:** Criação do API Rest e o código de verificação dos containers do Docker.
+- **Dificuldades:** A principal dificuldade que tive foi de organização na criação dos códigos. Apesar de saber onde procurar por referências para a montagem dos códigos, eu não sabia em como eu poderia estruturar cada informação dentro dos arquivos.
 
 ---
 
