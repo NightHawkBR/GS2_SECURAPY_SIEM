@@ -1,6 +1,17 @@
-"""Módulo 3 — Detector: brute force, port scan e blacklist (dict + set), consolidados em ameaças."""
+"""Módulo 3 — Detector: brute force, port scan e blacklist (dict + set), consolidados em ameaças.
+
+Bônus (2º sem): correlação temporal — brute force em rajada dentro de uma janela de tempo.
+"""
+
+from datetime import datetime, timedelta
 
 from core.regras import classificar_severidade, extrair_valor
+
+FORMATO_TIMESTAMP = "%Y-%m-%d %H:%M:%S"
+JANELA_PADRAO = 60            # segundos
+LIMITE_RAJADA = 5             # falhas dentro da janela
+AGRAVANTE_RAJADA = 3          # pontos a mais na ameaça: rapidez indica automação
+REGRA_RAJADA = ("T001", "Brute Force em Rajada")
 
 
 def _faixa(valor, faixas, padrao):
@@ -69,12 +80,82 @@ def verificar_blacklist(eventos, blacklist):
     return encontrados, contagem
 
 
-def gerar_resumo_ameacas(brute_force, port_scan, blacklist_resultado):
-    """Consolida as 3 detecções numa lista de ameaças, da mais grave para a menos grave."""
+def _instante(evento):
+    try:
+        return datetime.strptime(evento.get("timestamp", ""), FORMATO_TIMESTAMP)
+    except (TypeError, ValueError):
+        return None
+
+
+def _maior_trecho(tentativas, janela):
+    """Janela deslizante com dois ponteiros sobre tentativas ordenadas → maior trecho dentro da janela."""
+    inicio, melhor = 0, (0, 0)
+    for fim, (instante, _) in enumerate(tentativas):
+        while instante - tentativas[inicio][0] > janela:
+            inicio += 1
+        if fim - inicio > melhor[1] - melhor[0]:
+            melhor = (inicio, fim)
+    return tentativas[melhor[0]:melhor[1] + 1]
+
+
+def detectar_brute_force_temporal(eventos, janela_segundos=JANELA_PADRAO, limite=LIMITE_RAJADA):
+    """FAILs do mesmo IP concentrados em uma janela de tempo (não só a contagem total).
+
+    11 falhas em 40 s é ataque automatizado; as mesmas 11 espalhadas pelo dia, não necessariamente.
+    Severidade pelo pico na janela: >=20 CRITICA | >=10 ALTA | >=limite MEDIA.
+    """
+    falhas = {}
+    for evento in eventos:
+        ip = evento.get("ip")
+        if evento.get("fonte") != "auth" or evento.get("tipo") != "FAIL" or not ip:
+            continue
+        if (instante := _instante(evento)) is not None:
+            usuario = extrair_valor(evento.get("detalhes", ""), "usuario")
+            falhas.setdefault(ip, []).append((instante, usuario))
+
+    janela = timedelta(seconds=janela_segundos)
+    rajadas = {}
+    for ip, tentativas in falhas.items():
+        trecho = _maior_trecho(sorted(tentativas), janela)
+        if len(trecho) < limite:
+            continue
+        inicio, fim = trecho[0][0], trecho[-1][0]
+        rajadas[ip] = {
+            "pico": len(trecho),
+            "inicio": inicio.strftime(FORMATO_TIMESTAMP),
+            "fim": fim.strftime(FORMATO_TIMESTAMP),
+            "duracao_segundos": int((fim - inicio).total_seconds()),
+            "janela_segundos": janela_segundos,
+            "usuarios": {usuario for _, usuario in trecho if usuario},
+            "severidade": _faixa(len(trecho), ((19, "CRITICA"), (9, "ALTA")), "MEDIA"),
+        }
+    return rajadas
+
+
+def gerar_alertas_rajada(rajadas):
+    """Cada rajada vira um alerta no formato do contrato — vai para o banco e para os consoles TCP."""
+    regra_id, regra_nome = REGRA_RAJADA
+    return [
+        {
+            "timestamp": rajada["fim"],
+            "regra_id": regra_id,
+            "regra_nome": regra_nome,
+            "severidade": rajada["severidade"],
+            "ip": ip,
+            "descricao": (f"{rajada['pico']} falhas de login em {rajada['duracao_segundos']}s "
+                          f"(janela de {rajada['janela_segundos']}s)"),
+        }
+        for ip, rajada in sorted(rajadas.items(), key=lambda item: item[1]["fim"])
+    ]
+
+
+def gerar_resumo_ameacas(brute_force, port_scan, blacklist_resultado, rajadas=None):
+    """Consolida as detecções numa lista de ameaças, da mais grave para a menos grave."""
     blacklist_ips, blacklist_contagem = blacklist_resultado
+    rajadas = rajadas or {}
     ameacas = []
 
-    for ip in set(brute_force) | set(port_scan) | set(blacklist_ips):
+    for ip in set(brute_force) | set(port_scan) | set(blacklist_ips) | set(rajadas):
         deteccoes, pontuacao, detalhes = [], 0, {}
 
         if ip in brute_force:
@@ -91,6 +172,11 @@ def gerar_resumo_ameacas(brute_force, port_scan, blacklist_resultado):
             deteccoes.append("blacklist")
             pontuacao += 5
             detalhes["blacklist"] = {"contagem_eventos": blacklist_contagem.get(ip, 0)}
+
+        if ip in rajadas:
+            deteccoes.append("brute_force_rajada")
+            pontuacao += AGRAVANTE_RAJADA
+            detalhes["brute_force_rajada"] = rajadas[ip]
 
         ameacas.append({
             "ip": ip,

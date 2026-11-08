@@ -90,7 +90,11 @@ def cmd_menu(_):
         eventos, alertas = resultado["eventos"], resultado["alertas"]
         match opcao:
             case 1:
-                resultado = analisar_pasta(settings.PASTA_LOGS, settings.ARQUIVO_REGRAS, settings.BLACKLIST)
+                resultado = analisar_pasta(
+                    settings.PASTA_LOGS, settings.ARQUIVO_REGRAS, settings.BLACKLIST,
+                    janela_segundos=settings.BRUTE_FORCE_JANELA_SEGUNDOS,
+                    limite_rajada=settings.BRUTE_FORCE_LIMITE_JANELA,
+                )
                 print(f"\n[OK] {len(resultado['eventos'])} eventos · {len(resultado['alertas'])} alertas · "
                       f"{len(resultado['ameacas'])} ameaças.")
             case 2:
