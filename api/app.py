@@ -271,6 +271,7 @@ def criar_app(testando=False):
         SESSION_COOKIE_SAMESITE="Lax",
     )
     app.json.ensure_ascii = False
+    app.json.mimetype = "application/json; charset=utf-8"
     app.json.sort_keys = False
 
     app.register_blueprint(api)

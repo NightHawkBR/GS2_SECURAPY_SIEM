@@ -169,7 +169,7 @@ def exportar_relatorio_json(dados, caminho):
             os.makedirs(pasta, exist_ok=True)
         with open(caminho, "w", encoding="utf-8") as f:
             json.dump(serializavel(dados), f, indent=2, ensure_ascii=False, default=str)
-        print(f"\n[✓] Relatorio exportado com sucesso: {caminho}")
+        print(f"\n[OK] Relatorio exportado com sucesso: {caminho}")
     except OSError as erro:
         print(f"\n[ERRO] Nao foi possivel salvar o relatorio: {erro}")
 
