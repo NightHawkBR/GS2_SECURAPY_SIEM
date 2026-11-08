@@ -111,6 +111,7 @@ def salvar_cache(cache, caminho):
         Path(caminho).parent.mkdir(parents=True, exist_ok=True)
         with open(caminho, "w", encoding="utf-8") as f:
             json.dump(cache, f, indent=2, ensure_ascii=False)
+            f.write("\n")
     except OSError as erro:
         print(f"[AVISO] Nao foi possivel salvar o cache: {erro}")
 

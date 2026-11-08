@@ -3,6 +3,7 @@
 from functools import wraps
 from flask import Blueprint, redirect, render_template, request, session, url_for
 
+from config import settings
 from core import enriquecimento
 from db import mongo_repo, mysql_repo
 from ia import assistente
@@ -78,25 +79,13 @@ def painel_ip():
         
     eventos = mongo_repo.buscar_eventos(ip=ip_alvo, tamanho=50)
     alertas = mongo_repo.buscar_alertas(ip=ip_alvo, tamanho=50)
-    
-    # Enriquecimento (Geolocalização)
-    if enriquecimento.eh_ip_privado(ip_alvo):
-        geo = {"org": "Rede Interna"}
-    else:
-        # Passa um cache vazio provisório (a arquitetura principal injetará o oficial)
-        geo = enriquecimento.consultar_ip(ip_alvo, cache={})
-        
-    # Integração Segura: Tenta usar os módulos C e G. 
-    # Se os parceiros ainda não codaram, não quebra a tela.
-    try:
-        classificacao = classificar.classificar(ip_alvo) # Nome presumido da função do Módulo C
-    except (NotImplementedError, AttributeError, TypeError):
-        classificacao = None
+    geo = enriquecimento.consultar_ip(ip_alvo, enriquecimento.carregar_cache(settings.ARQUIVO_CACHE_GEO))
 
     try:
-        triagem = assistente.analisar(eventos, alertas) # Nome presumido da função do Módulo G
-    except (NotImplementedError, AttributeError, TypeError):
-        triagem = None
+        classificacao = classificar.classificar_ip(ip_alvo, eventos)
+    except Exception:   # modelo ausente ou adulterado: a tela continua sem o score
+        classificacao = None
+    triagem = assistente.classificar_evento(eventos[0]) if eventos else None
 
     contexto = {
         "ip": ip_alvo,
