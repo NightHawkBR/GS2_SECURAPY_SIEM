@@ -8,9 +8,9 @@ SIEM da **CyberShield Ltda.** evoluído do MVP de linha de comando (1º semestre
 
 | Nome | RM | Módulos |
 |------|----|---------|
-| Matheus Silva Souza | 572335 | A + C  + G — Núcleo,  Machine Learning e LLM |
+| Matheus Silva Souza | 572335 | A + C — Núcleo e  Machine Learning |
 | Victor Cassamassimo da Silva | 572852 | B + E — Persistência e Dashboard/Segurança Web |
-| [Nome completo] | [RM] |  |
+| Nicolas Schulthais Gouvea | 573863 | G + Bônus (JWT e Correlação Temporal) |
 | Pedro Bezerra Cardoso | 567119 | D + F — API REST e Docker |
 
 ---
@@ -204,16 +204,16 @@ Observação sobre o cenário A2: o `auth.log` tem **11** FAILs de `185.220.101.
 
 ## Divisão de tarefas
 
-### Matheus Silva · Módulos A e B
-- **O que fez:** Integração do Núcleo da GS1, implementação da LLM com Machine Learning.
+### Matheus Silva · Módulos A e C
+- **O que fez:** Integração do Núcleo da GS1 e implementação de Machine Learning.
 - **Dificuldades:**Minha maior dificuldade foi a integração do núcleo da GS1 com o resto do projeto. Sem o uso de IA, seria ainda mais complicado, mesmo com o prazo de entrega alongado.
 
 ### Cassa · Módulos B e E
 - **O que fez:** Integração dos bancos de dados e "assinatura" das tabelas de persistência. Criação do Dashboard e aplicação de medidas de segurança para a plataforma WEB dos operadores.
 - **Dificuldades:** Não tenho costume de fazer vibe coding, portanto, ainda tenho dificuldades de realizar atividades com prompts adequados. A longo prazo, a revisão dos condigos tornou-se mais facil, porém, ter o controle do que faço dessa forma é  mais complicados, diferente da primeira GS, que, ao menos, toda a lógica e parte fundamental do funcionamento do enriquecimento com consultas a API foram feitas por mim, e apenas aprimoradas com o uso de IA.
 
-### [Nome — Pessoa B] · Módulo C
-- **O que fez:**
+### Nicolas Schulthais · Módulo G e Bônus (JWT e Correlação Temporal)
+- **O que fez:** Implementação de LLM e verificação de Token via JWT e Correlação Temporal
 - **Dificuldades:**
 
 ### Pedro Bezerra · Módulos D e F
