@@ -8,8 +8,10 @@ import pytest
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
+import orquestrador
 from config import settings
 from core.coletor import carregar_todos_os_logs
+from db import mongo_repo
 from ml.anomalias import detectar_anomalias
 from ml.classificar import carregar_modelo, classificar_ip, pontuar
 from ml.features import FEATURES, extrair_features
@@ -117,3 +119,56 @@ def test_bonus_anomalias_destacam_o_atacante(eventos):
 
 def test_bonus_anomalias_sem_dados():
     assert detectar_anomalias([], settings.BLACKLIST) == []
+
+
+# ── C3: o score do ML ordena o que o analista vê ───────────────
+
+IPS_ANOMALOS = ["185.220.101.1", "91.240.118.172"]
+
+
+@pytest.fixture
+def analise(mongo_fake, ambiente_isolado, monkeypatch):
+    monkeypatch.setattr(orquestrador, "broadcast_alerta", lambda alerta: None)
+    return orquestrador.executar_analise()
+
+
+def test_c3_todo_alerta_gravado_tem_score_e_anomalia(analise, mongo_fake):
+    alertas = mongo_fake[mongo_repo.ALERTAS]
+    assert alertas.count_documents({"score": {"$type": "number"}, "anomalia": {"$type": "bool"}}) == 33
+    assert analise["resumo"]["etapas"]["anomalias"] == "ok"
+
+
+def test_c3_ameacas_vem_do_maior_risco_para_o_menor(analise):
+    chaves = [(a["score"], a["pontuacao"]) for a in mongo_repo.listar_ameacas()]
+    assert chaves == sorted(chaves, reverse=True)
+    assert mongo_repo.listar_ameacas()[0]["ip"] == "185.220.101.1"
+
+
+def test_c3_api_ordena_alertas_por_risco(cliente, analise):
+    mongo_repo.inserir_alerta({"timestamp": "2030-01-01 00:00:00", "regra_id": "MANUAL", "regra_nome": "Manual",
+                               "severidade": "BAIXA", "ip": "203.0.113.7", "descricao": "sem score"})
+    por_data = cliente.get("/api/alertas?tamanho=1").get_json()["itens"][0]
+    por_risco = cliente.get("/api/alertas?ordenar=risco&tamanho=100").get_json()["itens"]
+    assert por_data["ip"] == "203.0.113.7"
+    assert por_risco[0]["score"] == 1.0 and por_risco[-1]["ip"] == "203.0.113.7"
+
+
+def test_c3_rota_de_ameacas(cliente, analise):
+    itens = cliente.get("/api/ameacas").get_json()["itens"]
+    assert [a["ip"] for a in itens][0] == "185.220.101.1"
+    assert all({"score", "rotulo_ml", "anomalia", "deteccoes"} <= a.keys() for a in itens)
+
+
+def test_c3_nova_analise_atualiza_alertas_antigos(mongo_fake, ambiente_isolado, monkeypatch):
+    monkeypatch.setattr(orquestrador, "broadcast_alerta", lambda alerta: None)
+    mongo_repo.inserir_alerta({"timestamp": "2025-02-19 10:00:00", "regra_id": "MANUAL", "regra_nome": "Antigo",
+                               "severidade": "ALTA", "ip": "185.220.101.1", "descricao": "de antes do ML"})
+    orquestrador.executar_analise()
+    antigo = mongo_fake[mongo_repo.ALERTAS].find_one({"regra_id": "MANUAL"})
+    assert antigo["score"] == 1.0 and antigo["anomalia"] is True
+
+
+def test_bonus_anomalias_entram_na_plataforma(cliente, analise):
+    assert analise["resumo"]["ips_anomalos"] == IPS_ANOMALOS
+    assert cliente.get("/api/ip/185.220.101.1").get_json()["anomalia"] is True
+    assert cliente.get("/api/ip/45.33.32.156").get_json()["anomalia"] is False

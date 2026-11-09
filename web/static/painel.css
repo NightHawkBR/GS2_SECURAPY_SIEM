@@ -41,6 +41,7 @@ th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--
 th { color: var(--suave); font-weight: 500; font-size: .85rem; }
 .num { text-align: right; font-family: var(--mono); }
 .mono { font-family: var(--mono); font-size: .9em; word-break: break-all; }
+td.mono { white-space: nowrap; word-break: normal; }      /* data e IP numa linha só */
 
 input, button { font: inherit; border-radius: 6px; padding: .55rem .8rem; border: 1px solid var(--borda); }
 input { background: var(--fundo); color: var(--texto); width: 100%; }

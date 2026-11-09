@@ -170,7 +170,7 @@ class TestGeolocalizacao:
     def test_analise_grava_os_alertas_com_geolocalizacao(self, mongo_fake, ipinfo, monkeypatch):
         monkeypatch.setattr(orquestrador, "broadcast_alerta", lambda alerta: None)
         etapas = orquestrador.executar_analise()["resumo"]["etapas"]
-        assert list(etapas) == ["nucleo", "ml", "enriquecimento", "persistencia", "tempo_real"]
+        assert list(etapas) == ["nucleo", "ml", "anomalias", "enriquecimento", "persistencia", "tempo_real"]
         assert set(etapas.values()) == {"ok"}
         alertas = mongo_fake[mongo_repo.ALERTAS]
         assert alertas.count_documents({"geolocalizacao": {"$exists": True}}) == alertas.count_documents({}) == 33

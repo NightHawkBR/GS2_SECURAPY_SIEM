@@ -51,17 +51,19 @@ def logout():
     session.clear()
     return redirect(url_for("web.login"))
 
+def _contexto_painel():
+    """por_fonte, por_severidade, top_ips (pelo risco do ML), alertas_recentes.  [E1][C3]"""
+    return {
+        "por_fonte": mongo_repo.contagem_por_fonte(),
+        "por_severidade": mongo_repo.contagem_por_severidade(),
+        "top_ips": mongo_repo.ips_por_risco(n=10),
+        "alertas_recentes": mongo_repo.buscar_alertas(tamanho=10)
+    }
+
 @web.get("/painel")
 @login_obrigatorio
 def painel():
-    """Contexto do template: por_fonte, por_severidade, top_ips, alertas_recentes. [E1]"""
-    contexto = {
-        "por_fonte": mongo_repo.contagem_por_fonte(),
-        "por_severidade": mongo_repo.contagem_por_severidade(),
-        "top_ips": mongo_repo.top_ips(n=10),
-        "alertas_recentes": mongo_repo.buscar_alertas(tamanho=10)
-    }
-    return render_template("painel.html", **contexto)
+    return render_template("painel.html", **_contexto_painel())
 
 @web.get("/painel/ip")
 @login_obrigatorio
@@ -70,6 +72,8 @@ def painel_ip():
     ip_alvo = request.args.get("ip")
     if not ip_alvo:
         return redirect(url_for("web.painel"))
+    if not enriquecimento.ip_valido(ip_alvo):
+        return render_template("painel.html", **_contexto_painel(), erro="IP inválido"), 400
 
     eventos = mongo_repo.buscar_eventos(ip=ip_alvo, tamanho=50)
     alertas = mongo_repo.buscar_alertas(ip=ip_alvo, tamanho=50)
@@ -87,6 +91,7 @@ def painel_ip():
         "alertas": alertas,
         "geo": geo,
         "classificacao": classificacao,
+        "anomalia": any(alerta.get("anomalia") for alerta in alertas),
         "triagem": triagem
     }
     return render_template("ip.html", **contexto)

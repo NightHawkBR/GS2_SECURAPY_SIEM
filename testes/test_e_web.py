@@ -97,3 +97,25 @@ def test_e4_toda_requisicao_gera_log(cliente, caplog):
         cliente.get("/api/saude")
     linhas = [r.getMessage() for r in caplog.records if r.name == "securapy.acesso"]
     assert any("/api/saude" in linha and "200" in linha for linha in linhas)
+
+
+# ── Painel: prioridade do ML e IP validado ─────────────────────
+
+def test_top_ips_vem_pela_prioridade_do_ml(logado, base_populada):
+    html = logado.get("/painel").get_data(as_text=True)
+    topo = html.split("Top 10 IPs suspeitos")[1].split("Alertas recentes")[0]
+    assert topo.index("185.220.101.1") < topo.index("91.240.118.172") < topo.index("45.33.32.156")
+    assert "1.00" in topo and "anômalo" in topo
+    assert "192.168.1.10" not in topo                  # tráfego interno normal não é "suspeito"
+
+
+def test_painel_recusa_ip_invalido(logado, mongo_fake):
+    resposta = logado.get("/painel/ip?ip=<b>nao-e-ip</b>")
+    html = resposta.get_data(as_text=True)
+    assert resposta.status_code == 400
+    assert "IP inválido" in html and "<b>nao-e-ip</b>" not in html
+
+
+def test_pagina_do_ip_mostra_o_isolation_forest(logado, base_populada):
+    html = logado.get("/painel/ip?ip=185.220.101.1").get_data(as_text=True)
+    assert "Isolation Forest: anômalo" in html

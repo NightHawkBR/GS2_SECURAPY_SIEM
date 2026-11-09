@@ -18,6 +18,10 @@ ALGORITMO = "HS256"
 EMISSOR = "securapy"
 CLAIMS_OBRIGATORIAS = ["sub", "nivel", "iss", "iat", "exp"]
 
+# níveis 1–5 do MySQL: 1 só consulta · 2+ registra alerta manual · 3+ dispara a análise completa
+NIVEL_ALERTA_MANUAL = 2
+NIVEL_ANALISE = 3
+
 
 def gerar_token(email: str, nivel: int = 1) -> str:
     """JWT com quem é (sub), nível de acesso, emissor, emissão e expiração."""
@@ -74,3 +78,15 @@ def token_obrigatorio(view):
         g.operador = identidade
         return view(*args, **kwargs)
     return protegida
+
+
+def nivel_minimo(nivel):
+    """Vem depois do token_obrigatorio: operador abaixo do nível exigido → 403."""
+    def decorador(view):
+        @wraps(view)
+        def protegida(*args, **kwargs):
+            if int(g.operador.get("nivel", 0)) < nivel:
+                return jsonify({"erro": "Nível de acesso insuficiente"}), 403
+            return view(*args, **kwargs)
+        return protegida
+    return decorador

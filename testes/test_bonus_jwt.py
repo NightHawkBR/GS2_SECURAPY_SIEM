@@ -94,4 +94,4 @@ def test_token_de_servico_continua_valendo(cliente):
 def test_sem_api_token_so_jwt_entra(cliente, monkeypatch):
     monkeypatch.setattr(settings, "API_TOKEN", None)
     assert _criar_alerta(cliente, "").status_code == 401
-    assert _criar_alerta(cliente, gerar_token("ana@empresa.com")).status_code == 201
+    assert _criar_alerta(cliente, gerar_token("ana@empresa.com", 2)).status_code == 201

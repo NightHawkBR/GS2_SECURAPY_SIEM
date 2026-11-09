@@ -15,6 +15,10 @@ from config import settings
 
 EVENTOS, ALERTAS, AMEACAS, GEOLOCALIZACAO = "eventos", "alertas", "ameacas", "geolocalizacao"
 VALIDADE_GEO_SEGUNDOS = 30 * 24 * 3600      # TTL: o próprio MongoDB expira a geolocalização antiga
+ORDENACOES_ALERTA = {
+    "data": [("timestamp", DESCENDING)],
+    "risco": [("score", DESCENDING), ("timestamp", DESCENDING)],
+}
 
 log = logging.getLogger("securapy.mongo")
 
@@ -43,6 +47,7 @@ def criar_indices(db=None) -> None:
 
     banco[ALERTAS].create_index([("ip", ASCENDING)])
     banco[ALERTAS].create_index([("severidade", DESCENDING)])
+    banco[ALERTAS].create_index([("score", DESCENDING), ("timestamp", DESCENDING)])
     banco[ALERTAS].create_index([("hash", ASCENDING)], unique=True)
 
     banco[GEOLOCALIZACAO].create_index([("ip", ASCENDING)], unique=True)
@@ -78,6 +83,12 @@ def salvar_alertas(alertas, db=None) -> int:
         return len(res.inserted_ids)
     except BulkWriteError as e:
         return e.details['nInserted']
+
+def atualizar_prioridade(prioridades, db=None) -> None:
+    """{ip: {"score", "rotulo_ml", "anomalia"}} em TODOS os alertas do IP, inclusive os de análises anteriores."""
+    banco = _db(db)
+    for ip, campos in prioridades.items():
+        banco[ALERTAS].update_many({"ip": ip}, {"$set": campos})
 
 def salvar_ameacas(ameacas, db=None) -> int:
     if not ameacas: return 0
@@ -115,13 +126,14 @@ def buscar_eventos(fonte=None, tipo=None, ip=None, desde=None, ate=None,
     cursor = cursor.skip((pagina - 1) * tamanho).limit(tamanho)
     return [_formatar_saida(doc) for doc in cursor]
 
-def buscar_alertas(severidade=None, ip=None, pagina=1, tamanho=20, db=None) -> list[dict]:
+def buscar_alertas(severidade=None, ip=None, pagina=1, tamanho=20, ordenar="data", db=None) -> list[dict]:
+    """ordenar="data" (mais recentes primeiro) ou "risco" (score do ML do IP, depois data).  [C3]"""
     banco = _db(db)
     filtro = {}
     if severidade: filtro["severidade"] = severidade
     if ip: filtro["ip"] = ip
 
-    cursor = banco[ALERTAS].find(filtro).sort("timestamp", DESCENDING)
+    cursor = banco[ALERTAS].find(filtro).sort(ORDENACOES_ALERTA[ordenar])
     cursor = cursor.skip((pagina - 1) * tamanho).limit(tamanho)
     return [_formatar_saida(doc) for doc in cursor]
 
@@ -139,6 +151,12 @@ def obter_ameaca(ip, db=None) -> dict | None:
     doc = banco[AMEACAS].find_one({"ip": ip})
     return _formatar_saida(doc)
 
+def listar_ameacas(n=50, db=None) -> list[dict]:
+    """Ameaças da mais arriscada para a menos: score do ML, depois a pontuação das regras.  [C3]"""
+    banco = _db(db)
+    cursor = banco[AMEACAS].find().sort([("score", DESCENDING), ("pontuacao", DESCENDING)]).limit(n)
+    return [_formatar_saida(doc) for doc in cursor]
+
 # ── Agregações ─────────────────────────────────────────────────
 
 def top_ips(n=5, db=None) -> list[dict]:
@@ -149,6 +167,19 @@ def top_ips(n=5, db=None) -> list[dict]:
         {"$limit": n}
     ]
     return [{"ip": doc["_id"], "total": doc["total"]} for doc in banco[EVENTOS].aggregate(pipeline)]
+
+def ips_por_risco(n=10, db=None) -> list[dict]:
+    """IPs com alerta, do maior score do ML para o menor — o "top IPs suspeitos" do painel.  [C3][E1]"""
+    banco = _db(db)
+    pipeline = [
+        {"$match": {"ip": {"$ne": None}}},
+        {"$group": {"_id": "$ip", "score": {"$max": "$score"}, "anomalia": {"$max": "$anomalia"},
+                    "alertas": {"$sum": 1}}},
+        {"$sort": {"score": -1, "alertas": -1, "_id": 1}},
+        {"$limit": n},
+    ]
+    return [{"ip": doc["_id"], "score": doc["score"], "anomalia": bool(doc["anomalia"]), "alertas": doc["alertas"]}
+            for doc in banco[ALERTAS].aggregate(pipeline)]
 
 def contagem_por_severidade(db=None) -> dict[str, int]:
     banco = _db(db)
