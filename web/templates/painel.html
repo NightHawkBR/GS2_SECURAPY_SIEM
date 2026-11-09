@@ -1,10 +1,11 @@
-{# contexto: por_fonte (dict) · por_severidade (dict) · top_ips (list[{ip,total}]) · alertas_recentes (list[Alerta]) #}
+{# contexto: por_fonte · por_severidade · top_ips (list[{ip,score,anomalia,alertas}]) · alertas_recentes · erro (opcional) #}
 {% extends "base.html" %}
 {% block conteudo %}
 <form class="busca" method="get" action="{{ url_for('web.painel_ip') }}">
   <input name="ip" placeholder="Investigar IP — ex.: 185.220.101.1" required>
   <button type="submit">Investigar</button>
 </form>
+{% if erro %}<p class="erro">{{ erro }}</p>{% endif %}
 
 <div class="grade">
   <section class="cartao">
@@ -25,15 +26,17 @@
 </div>
 
 <section class="cartao">
-  <h2>Top 10 IPs suspeitos</h2>
+  <h2>Top 10 IPs suspeitos · prioridade do ML</h2>
   <table>
-    <thead><tr><th>#</th><th>IP</th><th class="num">Eventos</th></tr></thead>
+    <thead><tr><th>#</th><th>IP</th><th class="num">Risco (ML)</th><th class="num">Alertas</th><th>Isolation Forest</th></tr></thead>
     <tbody>
       {% for item in top_ips %}
         <tr>
           <td>{{ loop.index }}</td>
           <td><a href="{{ url_for('web.painel_ip', ip=item.ip) }}">{{ item.ip }}</a></td>
-          <td class="num">{{ item.total }}</td>
+          <td class="num mono">{{ '%.2f'|format(item.score) if item.score is number else '—' }}</td>
+          <td class="num">{{ item.alertas }}</td>
+          <td>{{ 'anômalo' if item.anomalia else '—' }}</td>
         </tr>
       {% endfor %}
     </tbody>
@@ -43,7 +46,7 @@
 <section class="cartao">
   <h2>Alertas recentes</h2>
   <table>
-    <thead><tr><th>Quando</th><th>Severidade</th><th>Regra</th><th>IP</th><th>Descrição</th></tr></thead>
+    <thead><tr><th>Quando</th><th>Severidade</th><th>Regra</th><th>IP</th><th class="num">Risco</th><th>Descrição</th></tr></thead>
     <tbody>
       {% for alerta in alertas_recentes %}
         <tr>
@@ -51,6 +54,7 @@
           <td><span class="sev sev-{{ alerta.severidade|lower }}">{{ alerta.severidade }}</span></td>
           <td>{{ alerta.regra_nome }}</td>
           <td class="mono">{{ alerta.ip }}</td>
+          <td class="num mono">{{ '%.2f'|format(alerta.score) if alerta.score is number else '—' }}</td>
           <td>{{ alerta.descricao }}</td>
         </tr>
       {% endfor %}

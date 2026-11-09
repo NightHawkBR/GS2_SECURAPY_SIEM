@@ -1,4 +1,4 @@
-{# contexto: ip · eventos · alertas · geo (perfil) · classificacao (Classificacao|None) · triagem (Triagem|None) #}
+{# contexto: ip · eventos · alertas · geo (perfil) · classificacao (Classificacao|None) · anomalia (bool) · triagem (Triagem|None) #}
 {% extends "base.html" %}
 {% block titulo %}{{ ip }}{% endblock %}
 {% block conteudo %}
@@ -14,6 +14,7 @@
     {% else %}
       <p class="vazio">Modelo indisponível.</p>
     {% endif %}
+    <p class="mono">Isolation Forest: {{ 'anômalo' if anomalia else 'dentro do padrão' }}</p>
   </section>
 
   <section class="cartao">

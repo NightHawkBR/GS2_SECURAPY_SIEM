@@ -21,7 +21,7 @@ SIEM da **CyberShield Ltda.** evoluído do MVP de linha de comando (1º semestre
 flowchart LR
     LOGS[(logs/*.log)] --> CORE[core<br/>coletor · regras · detector]
     CORE --> ORQ{{orquestrador}}
-    ORQ --> ML[ml<br/>score de risco]
+    ORQ --> ML[ml<br/>score de risco · Isolation Forest]
     ORQ --> MONGO[(MongoDB<br/>eventos · alertas · ameaças<br/>geolocalização)]
     ORQ --> TCP[alertas<br/>servidor TCP :9999]
     TCP --> C1[console 1] & C2[console 2]
@@ -98,7 +98,6 @@ Fluxo da demonstração (GS §4):
 
 ```bash
 docker compose exec api python main.py operador          # cria o operador do dashboard
-docker compose exec api python main.py treinar           # treina o modelo (ou treine antes do build)
 
 python -m alertas.cliente_alertas                        # console 1 (outro terminal, só stdlib)
 python -m alertas.cliente_alertas                        # console 2
@@ -110,8 +109,12 @@ curl -X POST http://localhost:5000/api/analisar \
      -H "Authorization: Bearer <JWT recebido>" \
      -H "Content-Type: application/json" -d "{}"         # analisa os 3 logs → alertas chegam nos consoles
 
-curl http://localhost:5000/api/ip/185.220.101.1          # eventos + alertas + geo + score + triagem
+curl http://localhost:5000/api/ip/185.220.101.1          # eventos + alertas + geo + score + anomalia + triagem
+curl "http://localhost:5000/api/alertas?ordenar=risco"   # alertas priorizados pelo score do ML
+curl http://localhost:5000/api/ameacas                   # ameaças da mais arriscada para a menos
 ```
+
+O modelo já vem treinado no repositório (`ml/modelo.pkl` + hash). Para treinar de novo: `python main.py treinar`.
 
 No PowerShell, use `curl.exe` no lugar de `curl`. Depois: `http://localhost:5000/login` → painel → busca por IP.
 
@@ -126,12 +129,22 @@ As rotas de escrita (`POST /api/alertas` e `POST /api/analisar`) exigem `Authori
 
 O JWT é recusado se estiver expirado, adulterado, assinado com outra chave ou sem assinatura (`alg: none`). Alertas criados pela API guardam quem os criou em `criado_por`.
 
+O nível de acesso do operador (1–5, no MySQL) vai dentro do JWT e decide o que ele pode fazer:
+
+| Nível | Pode |
+|:-----:|------|
+| 1 | consultar (rotas `GET` e dashboard) |
+| 2 ou mais | registrar alerta manual (`POST /api/alertas`) |
+| 3 ou mais | disparar a análise completa (`POST /api/analisar`) |
+
+Abaixo do nível exigido, a resposta é `403`. O token de serviço vale como nível 5.
+
 ### Sem Docker (desenvolvimento)
 
 ```bash
 python -m venv .venv && .venv\Scripts\activate           # Linux/Mac: source .venv/bin/activate
 pip install -r requirements-dev.txt
-python main.py analisar --sem-banco                      # roda já hoje: núcleo + relatório JSON
+python main.py analisar --sem-banco --sem-tempo-real    # núcleo + ML + relatório JSON, sem bancos
 python main.py api                                       # API + dashboard em http://localhost:5000
 python main.py menu                                      # menu interativo do 1º semestre
 ```
@@ -140,41 +153,72 @@ Com os bancos do compose no ar, o `.env` local faz `python main.py ingerir` grav
 
 ---
 
+## Dependências
+
+Python 3.12 (imagem `python:3.12-slim`), MongoDB 7 e MySQL 8 — os três sobem pelo `docker compose`. Bibliotecas em `requirements.txt`:
+
+| Biblioteca | Para quê |
+|------------|----------|
+| `flask` · `gunicorn` | API REST e dashboard (o gunicorn serve a aplicação dentro do contêiner) |
+| `pymongo` | MongoDB: eventos, alertas, ameaças e geolocalização |
+| `mysql-connector-python` | MySQL: operadores da plataforma |
+| `scikit-learn` · `numpy` · `joblib` | modelo de risco, Isolation Forest e persistência do modelo |
+| `PyJWT` | bônus JWT |
+| `openai` | assistente LLM (sem chave, entra o fallback por regras) |
+| `requests` | enriquecimento pelo ipinfo.io |
+| `docker` | verificação dos contêineres pelo SDK |
+| `python-dotenv` | leitura do `.env` |
+
+Para os testes, `requirements-dev.txt` acrescenta `pytest` e `mongomock`.
+
+---
+
 ## Testes
 
 ```bash
 python -m pytest                       # tudo
-python -m pytest -m nucleo             # só o 1º semestre
-python -m pytest -m persistencia       # um módulo: persistencia | ml | api | web | docker | llm
+python -m pytest -m nucleo             # um módulo: nucleo | persistencia | ml | api | web | docker | llm
+python -m pytest -m "jwt or temporal"  # bônus
 python -m pytest --tb=no -q            # placar rápido
 ```
 
-Cada cenário da GS virou teste (`test_b_*` … `test_g_*`) — o mesmo esquema do 1º semestre: **o teste falha até o módulo ser implementado**. Banco, rede, Docker e OpenAI são simulados (mongomock, MagicMock, LLM falso), então tudo roda offline e sem gastar créditos.
+Cada cenário da GS virou teste, no mesmo esquema do 1º semestre. Banco, rede, Docker e OpenAI são simulados (mongomock, MagicMock, LLM falso), então tudo roda offline e sem gastar créditos.
 
-Placar no ponto de partida:
+Placar final:
 
 ```
-198 passed · 65 failed · 18 errors · 2 skipped
+351 passed · 2 skipped        # sem Docker
+353 passed                    # com o compose no ar e SECURAPY_E2E=1
 ```
 
-Os 198 são os 197 testes do núcleo + `/api/saude`. As falhas e erros são `NotImplementedError` e respostas `501` dos módulos B–G — somem conforme a equipe implementa. Os 2 pulados (F1/F3) rodam com a plataforma no ar: `SECURAPY_E2E=1 python -m pytest -m docker`.
+| Marcador | Testes | O que cobre |
+|----------|-------:|-------------|
+| `nucleo` | 197 | 1º semestre: coletor, regras, detector, enriquecimento, relatórios e servidor |
+| `persistencia` | 32 | B1–B4 + geolocalização no MongoDB |
+| `ml` | 17 | C1–C4 + prioridade dos alertas pelo score + Isolation Forest |
+| `api` | 61 | D1–D5, validação de lote e período, níveis de acesso e JWT |
+| `web` | 14 | E1–E4 + painel priorizado pelo ML |
+| `docker` | 5 | F1–F3 (2 deles só com o compose no ar) |
+| `llm` | 14 | G1–G4 |
+| `temporal` · `jwt` · `tempo_real` | 10 · 9 · 3 | bônus e servidor de alertas dentro da plataforma |
+
+Os 2 pulados rodam contra a plataforma real: `SECURAPY_E2E=1 python -m pytest -m docker`.
 
 ---
 
-## Mapa de implementação
+## Mapa dos módulos
 
-Cada função pendente tem docstring curta com o contrato e o cenário da GS entre colchetes (ex.: `[B2]`). Rotas pendentes respondem `501` com o cenário; o `orquestrador` marca etapas pendentes sem derrubar a análise.
+| Módulo | Arquivos | Cenários | Testes |
+|--------|----------|----------|--------|
+| **A** Núcleo + tempo real | `core/`, `alertas/` | A1–A4 | `testes/nucleo/`, `test_a_tempo_real.py`, `test_bonus_temporal.py` |
+| **B** Persistência | `db/mongo_repo.py`, `db/mysql_repo.py`, `db/migracao.py`, `db/schema.sql` | B1–B4 | `test_b_persistencia.py` |
+| **C** Machine Learning | `ml/` | C1–C4 | `test_c_ml.py` |
+| **D** API REST | `api/app.py`, `api/auth.py` | D1–D5 | `test_d_api.py`, `test_bonus_jwt.py` |
+| **E** Web | `web/painel.py`, `web/seguranca.py`, `web/templates/` | E1–E4 | `test_e_web.py` |
+| **F** Docker | `Dockerfile`, `docker-compose.yml`, `scripts/verificar_containers.py` | F1–F3 | `test_f_docker.py` |
+| **G** LLM | `ia/assistente.py` | G1–G4 | `test_g_assistente.py` |
 
-| Ordem | Módulo | Arquivos | Cenários | Testes |
-|:-----:|--------|----------|----------|--------|
-| 1 | **B** Persistência | `db/mongo_repo.py`, `db/mysql_repo.py`, `db/migracao.py` | B1–B4 | `test_b_persistencia.py` |
-| 1 | **C** Machine Learning | `ml/features.py`, `ml/integridade.py`, `ml/treinar.py`, `ml/classificar.py` | C1–C4 | `test_c_ml.py` |
-| 2 | **D** API REST | `api/auth.py`, `api/app.py` (rotas + `registrar_erros`) | D1–D5 | `test_d_api.py` |
-| 2 | **E** Web | `web/seguranca.py`, `web/painel.py` | E1–E4 | `test_e_web.py` |
-| 2 | **G** LLM | `ia/assistente.py` | G1–G4 | `test_g_assistente.py` |
-| 3 | **F** Docker | `scripts/verificar_containers.py` (Dockerfile e compose prontos) | F1–F3 | `test_f_docker.py` |
-
-B e C não dependem um do outro e começam juntos. D e E usam o banco, então vêm depois de B (GS §8, dica 3).
+O `orquestrador.py` liga tudo: núcleo → ML → anomalias → enriquecimento → persistência → tempo real. Cada etapa é isolada: um serviço fora do ar vira `falhou` no resumo da análise e nunca derruba o resto.
 
 ### Convenções da equipe
 
@@ -224,17 +268,17 @@ Observação sobre o cenário A2: o `auth.log` tem **11** FAILs de `185.220.101.
 
 ## Entregáveis
 
-- [ ] Código-fonte com Dockerfile e docker-compose
+- [x] Código-fonte com Dockerfile e docker-compose
 - [ ] README preenchido (integrantes e divisão de tarefas)
 - [ ] Vídeo (12–18 min): compose → análise via API → dashboard → busca de IP → score → LLM → 2 consoles
-- [ ] `saida/relatorio_exemplo.json` — `python main.py analisar --saida saida/relatorio_exemplo.json`
-- [ ] `ml/modelo.pkl` + `ml/modelo.sha256` + `ml/metricas.json` — `python main.py treinar`
+- [x] `saida/relatorio_exemplo.json` — `python main.py analisar --saida saida/relatorio_exemplo.json`
+- [x] `ml/modelo.pkl` + `ml/modelo.sha256` + `ml/metricas.json` — `python main.py treinar`
 
 ## Bônus
 
 | Bônus | Onde | Situação |
 |-------|------|:--------:|
-| Detecção de anomalias (+0,30) | `ml/anomalias.py` — `python -m ml.anomalias` | ✅ |
+| Detecção de anomalias (+0,30) | `ml/anomalias.py` — etapa `anomalias` da análise, coluna no painel e campo `anomalia` em `/api/ip`; isolado: `python -m ml.anomalias` | ✅ |
 | Correlação temporal (+0,20) | `core/detector.py` — brute force em rajada (padrão: 5 falhas em 60 s, alerta `T001`) — `python -m pytest -m temporal` | ✅ |
 | Testes automatizados (+0,30) | `testes/` — `python -m pytest` | ✅ |
 | JWT completo (+0,20) | `api/auth.py` — `python -m pytest -m jwt` | ✅ |

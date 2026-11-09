@@ -348,7 +348,7 @@ def mongo_fake(monkeypatch):
 
 @pytest.fixture
 def ambiente_isolado(monkeypatch):
-    """Sem internet, sem LLM real e com token conhecido."""
+    """Sem internet, sem LLM real, com token conhecido e o servidor de alertas "no ar" (como no contêiner)."""
     import requests
     from config import settings
 
@@ -356,6 +356,7 @@ def ambiente_isolado(monkeypatch):
         raise requests.exceptions.ConnectionError("rede desligada nos testes")
 
     monkeypatch.setattr("core.enriquecimento.requests.get", sem_rede)
+    monkeypatch.setattr("alertas.servidor_alertas.esta_no_ar", lambda: True)
     monkeypatch.setattr(settings, "API_TOKEN", "token-de-teste-com-32-caracteres!")
     monkeypatch.setattr(settings, "OPENAI_API_KEY", None)
     monkeypatch.setattr(settings, "LLM_MODO", "mock")
@@ -374,8 +375,9 @@ def cliente(app):
 
 @pytest.fixture
 def cabecalho_auth(ambiente_isolado):
-    from api.auth import gerar_token
-    return {"Authorization": f"Bearer {gerar_token('analista@cybershield.com')}"}
+    """Analista de nível 3: pode registrar alertas e disparar a análise."""
+    from api.auth import NIVEL_ANALISE, gerar_token
+    return {"Authorization": f"Bearer {gerar_token('analista@cybershield.com', NIVEL_ANALISE)}"}
 
 
 @pytest.fixture

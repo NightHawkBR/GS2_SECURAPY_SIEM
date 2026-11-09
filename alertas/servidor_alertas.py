@@ -15,6 +15,11 @@ TAMANHO_HISTORICO = 10
 clientes = {}                  # {conexao: endereco}
 lock = threading.Lock()
 historico_alertas = []
+_no_ar = threading.Event()     # ligado só enquanto a porta está escutando
+
+
+def esta_no_ar():
+    return _no_ar.is_set()
 
 
 def formatar_alerta(alerta):
@@ -84,8 +89,14 @@ def tratar_cliente(conexao, endereco):
 def iniciar_servidor(host=HOST, porta=PORTA):
     servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     servidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    servidor.bind((host, porta))
+    try:
+        servidor.bind((host, porta))
+    except OSError as erro:
+        servidor.close()
+        print(f"[SERVIDOR] Porta {porta} indisponivel ({erro.strerror}) - alertas em tempo real desativados")
+        return
     servidor.listen(MAX_CLIENTES)
+    _no_ar.set()
     print(f"[SERVIDOR] Aguardando conexoes em {host}:{porta}...")
 
     try:
@@ -96,6 +107,7 @@ def iniciar_servidor(host=HOST, porta=PORTA):
     except KeyboardInterrupt:
         print("\n[SERVIDOR] Encerrando...")
     finally:
+        _no_ar.clear()
         servidor.close()
 
 

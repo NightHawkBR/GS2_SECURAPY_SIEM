@@ -34,6 +34,7 @@ def cmd_analisar(args):
           f"{resumo['total_ameacas']} ameaças")
     for etapa, status in resumo["etapas"].items():
         print(f"     {etapa:<15} {status}")
+    print(f"     IPs anômalos (Isolation Forest): {', '.join(resumo['ips_anomalos']) or 'nenhum'}")
 
     geo = {a["ip"]: a["geolocalizacao"] for a in resultado["alertas"] if a.get("geolocalizacao")}
     dados = relatorios.montar_dados_relatorio(resultado["eventos"], resultado["alertas"], geo, resultado["ameacas"])

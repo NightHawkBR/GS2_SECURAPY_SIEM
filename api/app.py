@@ -6,6 +6,7 @@ Contrato de erro:   {"erro": "<mensagem amigável>"} — nunca traceback, query 
 
 import hashlib
 import logging
+import re
 import uuid
 from datetime import datetime
 
@@ -14,7 +15,7 @@ from werkzeug.exceptions import HTTPException
 
 import orquestrador
 from alertas.servidor_alertas import iniciar_em_background
-from api.auth import gerar_token, token_obrigatorio
+from api.auth import NIVEL_ALERTA_MANUAL, NIVEL_ANALISE, gerar_token, nivel_minimo, token_obrigatorio
 from config import settings
 from core import enriquecimento
 from core.contratos import FONTES, normalizar_severidade
@@ -29,6 +30,10 @@ api = Blueprint("api", __name__, url_prefix="/api")
 log = logging.getLogger("securapy.api")
 
 CAMPOS_EVENTO = ("timestamp", "fonte", "tipo", "ip", "detalhes", "linha_original")
+FORMATO_DATA_HORA, FORMATO_DATA = "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"
+TIPO_EVENTO = re.compile(r"[A-Za-z_]{1,20}")
+MAX_EVENTOS_LOTE = 5000
+ORDENACOES = ("data", "risco")
 
 # ── Funções auxiliares ────────────────────────────────────────────
 
@@ -45,6 +50,45 @@ def ler_paginacao():
     if pagina < 1 or not 1 <= tamanho <= settings.PAGINA_TAMANHO_MAX:
         return None
     return pagina, tamanho
+
+
+def _data(texto, formato):
+    try:
+        return datetime.strptime(texto, formato)
+    except ValueError:
+        return None
+
+
+def ler_periodo():
+    """desde/ate em AAAA-MM-DD ou AAAA-MM-DD HH:MM:SS; data sem hora cobre o dia inteiro. Inválido → None."""
+    periodo = {}
+    for nome, hora in (("desde", "00:00:00"), ("ate", "23:59:59")):
+        valor = request.args.get(nome)
+        if valor is None:
+            continue
+        if _data(valor, FORMATO_DATA):
+            valor = f"{valor} {hora}"
+        elif not _data(valor, FORMATO_DATA_HORA):
+            return None
+        periodo[nome] = valor
+    if periodo.get("desde", "") > periodo.get("ate", "9999"):
+        return None
+    return periodo
+
+
+def evento_limpo(evento):
+    """Só os 6 campos do contrato, todos texto e coerentes — nada de objeto, lista ou chave extra.  [D4]"""
+    if not isinstance(evento, dict) or not all(isinstance(evento.get(campo), str) for campo in CAMPOS_EVENTO):
+        return None
+    limpo = {campo: evento[campo] for campo in CAMPOS_EVENTO}
+    coerente = (
+        _data(limpo["timestamp"], FORMATO_DATA_HORA)
+        and limpo["fonte"] in FONTES
+        and TIPO_EVENTO.fullmatch(limpo["tipo"])
+        and enriquecimento.ip_valido(limpo["ip"])
+        and limpo["linha_original"].strip()
+    )
+    return limpo if coerente else None
 
 
 def obter_geolocalizacao(ip):
@@ -92,10 +136,12 @@ def listar_eventos():
     if ip is not None and not enriquecimento.ip_valido(ip):
         return erro("IP inválido", 400)
     tipo = request.args.get("tipo")
+    periodo = ler_periodo()
+    if periodo is None:
+        return erro("Período inválido: use AAAA-MM-DD ou AAAA-MM-DD HH:MM:SS, com 'desde' antes de 'ate'", 400)
 
     itens = mongo_repo.buscar_eventos(
-        fonte=fonte, tipo=tipo.upper() if tipo else None, ip=ip,
-        desde=request.args.get("desde"), ate=request.args.get("ate"),
+        fonte=fonte, tipo=tipo.upper() if tipo else None, ip=ip, **periodo,
         pagina=pagina, tamanho=tamanho,
     )
     return jsonify({"pagina": pagina, "tamanho": tamanho, "itens": itens})
@@ -117,9 +163,12 @@ def listar_alertas():
     ip = request.args.get("ip")
     if ip is not None and not enriquecimento.ip_valido(ip):
         return erro("IP inválido", 400)
+    ordenar = request.args.get("ordenar", "data")
+    if ordenar not in ORDENACOES:
+        return erro("Ordenação inválida: use 'data' ou 'risco'", 400)
 
-    itens = mongo_repo.buscar_alertas(severidade=severidade, ip=ip, pagina=pagina, tamanho=tamanho)
-    return jsonify({"pagina": pagina, "tamanho": tamanho, "itens": itens})
+    itens = mongo_repo.buscar_alertas(severidade=severidade, ip=ip, pagina=pagina, tamanho=tamanho, ordenar=ordenar)
+    return jsonify({"pagina": pagina, "tamanho": tamanho, "ordenar": ordenar, "itens": itens})
 
 @api.get("/alertas/<id_alerta>")
 def obter_alerta(id_alerta):
@@ -133,6 +182,7 @@ def obter_alerta(id_alerta):
 
 @api.post("/alertas")
 @token_obrigatorio
+@nivel_minimo(NIVEL_ALERTA_MANUAL)
 def criar_alerta():
     dados = request.get_json(silent=True)
     if not isinstance(dados, dict):
@@ -160,10 +210,20 @@ def criar_alerta():
     }
     return jsonify({"id": mongo_repo.inserir_alerta(alerta)}), 201
 
+@api.get("/ameacas")
+def listar_ameacas():
+    """Ameaças priorizadas pelo ML: score do IP, depois a pontuação das regras.  [C3]"""
+    paginacao = ler_paginacao()
+    if paginacao is None:
+        return erro("Parâmetros 'pagina' e 'tamanho' inválidos", 400)
+    _, tamanho = paginacao
+    return jsonify({"itens": mongo_repo.listar_ameacas(n=tamanho)})
+
 # ── Rotas: análise dos logs ───────────────────────────────────────
 
 @api.post("/analisar")
 @token_obrigatorio
+@nivel_minimo(NIVEL_ANALISE)
 def analisar():
     dados = request.get_json(silent=True)
     if dados is None and not request.get_data():
@@ -179,8 +239,13 @@ def analisar():
     if eventos is not None:
         if not isinstance(eventos, list) or not eventos:
             return erro("Campo 'eventos' deve ser uma lista não vazia", 400)
-        if not all(isinstance(e, dict) and set(CAMPOS_EVENTO) <= e.keys() for e in eventos):
-            return erro("Evento fora do formato esperado", 400)
+        if len(eventos) > MAX_EVENTOS_LOTE:
+            return erro(f"Lote acima de {MAX_EVENTOS_LOTE} eventos", 400)
+        limpos = [evento_limpo(e) for e in eventos]
+        if None in limpos:
+            posicao = limpos.index(None) + 1
+            return erro(f"Evento {posicao} fora do formato esperado", 400)
+        eventos = limpos
 
     try:
         resultado = orquestrador.executar_analise(caminho=caminho, eventos=eventos)
@@ -198,6 +263,7 @@ def investigar_ip(ip):
     eventos = mongo_repo.buscar_eventos(ip=ip, pagina=1, tamanho=settings.PAGINA_TAMANHO_MAX)
     alertas = mongo_repo.buscar_alertas(ip=ip, pagina=1, tamanho=settings.PAGINA_TAMANHO_MAX)
     classificacao = obter_score(ip, eventos)
+    ameaca = mongo_repo.obter_ameaca(ip)
 
     return jsonify({
         "ip": ip,
@@ -206,6 +272,8 @@ def investigar_ip(ip):
         "geolocalizacao": obter_geolocalizacao(ip),
         "score": classificacao["score"] if classificacao else None,
         "rotulo_ml": classificacao["rotulo"] if classificacao else None,
+        "anomalia": any(a.get("anomalia") for a in alertas) or bool(ameaca and ameaca.get("anomalia")),
+        "ameaca": ameaca,
         "triagem": obter_triagem(eventos),
     })
 
@@ -237,6 +305,7 @@ def registrar_erros(app):
         400: "Requisição inválida",
         404: "Rota não existe",
         405: "Método não permitido",
+        413: "Corpo da requisição grande demais",
         500: "Erro interno do servidor",
     }
 
